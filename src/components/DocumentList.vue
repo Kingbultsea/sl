@@ -478,7 +478,7 @@ defineExpose({
           <Checkbox v-if="isSelectMode" @change="(e) => handleSelectFile(file.url, e.target.checked)" class="file-checkbox" :checked="selectedFiles.has(file.url)" />
           <FileOutlined class="file-icon" />
           <div class="file-name">{{ file.name }}</div>
-          <div v-if="isEditMode" class="delete-button">
+          <div v-if="isEditMode" class="delete-button" style="top: 0px">
             <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
           </div>
         </div>
