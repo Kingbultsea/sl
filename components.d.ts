@@ -11,6 +11,8 @@ declare module 'vue' {
     ABreadcrumbItem: typeof import('ant-design-vue/es')['BreadcrumbItem']
     AButton: typeof import('ant-design-vue/es')['Button']
     AImage: typeof import('ant-design-vue/es')['Image']
+    ASelect: typeof import('ant-design-vue/es')['Select']
+    ASelectOption: typeof import('ant-design-vue/es')['SelectOption']
     ASwitch: typeof import('ant-design-vue/es')['Switch']
     AUpload: typeof import('ant-design-vue/es')['Upload']
     DocumentList: typeof import('./src/components/DocumentList.vue')['default']

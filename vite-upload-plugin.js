@@ -13,6 +13,9 @@ const ensureDir = (dir) => {
   }
 };
 
+// 确保 ./images 目录存在
+ensureDir(path.join(__dirname, './images'));
+
 // 配置 multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -52,6 +55,9 @@ export default function uploadPlugin() {
     name: 'vite:upload-plugin',
     configureServer(server) {
       const app = express();
+
+      // 确保 ./images 目录存在
+      ensureDir(path.join(__dirname, './images'));
 
       // 解析 multipart/form-data
       app.use(express.json()); // 解析 application/json
@@ -124,17 +130,6 @@ export default function uploadPlugin() {
       });
 
       // 图片删除处理
-      // app.post('/delete-image', (req, res) => {
-      //   const imagePath = path.join(__dirname, './images', req.body.imagePath);
-      //   fs.unlink(imagePath, (err) => {
-      //     if (err) {
-      //       res.status(500).send('Error deleting image');
-      //     } else {
-      //       res.send('Image deleted successfully');
-      //     }
-      //   });
-      // });
-
       app.post('/delete-files', (req, res) => {
         const files = req.body.files;
         if (!files || !Array.isArray(files)) {

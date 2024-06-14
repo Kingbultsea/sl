@@ -10,13 +10,39 @@ import { saveAs } from 'file-saver';
 const route = useRoute();
 const router = useRouter();
 
-const imageUrls = ref<{ url: string, name: string }[]>([]);
-const folderLinks = ref<{ url: string, name: string }[]>([]);
+const imageUrls = ref<{ url: string, name: string, lastModified: Date }[]>([]);
+const folderLinks = ref<{ url: string, name: string, lastModified: Date }[]>([]);
 const selectedImages = ref<Set<string>>(new Set());
 const isSelectMode = ref(false);
 const isEditMode = ref(false);
 const folderPath = ref(route.params.folderPath as String || '/');
 const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL;
+
+const monthMap: any = {
+  '1月': 'Jan',
+  '2月': 'Feb',
+  '3月': 'Mar',
+  '4月': 'Apr',
+  '5月': 'May',
+  '6月': 'Jun',
+  '7月': 'Jul',
+  '8月': 'Aug',
+  '9月': 'Sep',
+  '10月': 'Oct',
+  '11月': 'Nov',
+  '12月': 'Dec'
+};
+
+const parseDate = (dateString: string) => {
+  // 提取日、月、年和时间部分
+  const [datePart, timePart] = dateString.split(' ');
+  const [day, month, year] = datePart.split('-');
+  const monthEnglish = monthMap[month];
+
+  // 构建有效的日期字符串
+  const formattedDateString = `${day} ${monthEnglish} ${year} ${timePart}`;
+  return new Date(formattedDateString);
+};
 
 const fetchHtmlAndExtractImages = async () => {
   folderLinks.value = [];
@@ -33,26 +59,32 @@ const fetchHtmlAndExtractImages = async () => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     const links = doc.querySelectorAll('.display-name a');
+    const dates = doc.querySelectorAll('.last-modified');
 
     const validImageExtensions = ['.jpeg', '.jpg', '.png', '.gif'];
 
-    links.forEach(link => {
+    links.forEach((link, index) => {
       let fileName = link.textContent?.trim();
+      const lastModifiedText = dates[index].textContent?.trim();
+      const lastModified = parseDate(lastModifiedText!);
+      // const lastModified = new Date(lastModifiedText!.replace(/(\d+)-(\w+)-(\d+)/, '$2 $1, $3')); // 根据具体格式修改
+
+      console.log(lastModified, lastModifiedText);
+
       if (fileName!.endsWith('/')) {
         if (fileName !== '../') {
           fileName = fileName?.replace(/\/$/, ''); // 去除末尾的斜杠
-          folderLinks.value.push({ url: curUrl + fileName, name: fileName! });
+          folderLinks.value.push({ url: curUrl + fileName, name: fileName!, lastModified });
         }
       } else {
         const extension = fileName!.split('.').pop()?.toLowerCase();
         if (validImageExtensions.includes(`.${extension}`)) {
-          imageUrls.value.push({ url: curUrl + '/' + fileName, name: fileName! });
+          imageUrls.value.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified });
         }
       }
     });
 
-    imageUrls.value.reverse();
-    folderLinks.value.reverse();
+    sortItems(); // 加载数据后进行排序
   } catch (error) {
     console.error('Error fetching HTML:', error);
   }
@@ -273,7 +305,32 @@ const deleteSelectedImages = async () => {
   });
 };
 
+const sortOption = ref('name-asc');
 
+const sortItems = () => {
+  if (sortOption.value === 'name-asc') {
+    imageUrls.value.sort((a, b) => a.name.localeCompare(b.name));
+    folderLinks.value.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sortOption.value === 'name-desc') {
+    imageUrls.value.sort((a, b) => b.name.localeCompare(a.name));
+    folderLinks.value.sort((a, b) => b.name.localeCompare(a.name));
+  } else if (sortOption.value === 'date-asc') {
+    // @ts-ignore
+    imageUrls.value.sort((a, b) => a.lastModified - b.lastModified);
+     // @ts-ignore
+    folderLinks.value.sort((a, b) => a.lastModified - b.lastModified);
+  } else if (sortOption.value === 'date-desc') {
+     // @ts-ignore
+    imageUrls.value.sort((a, b) => b.lastModified - a.lastModified);
+     // @ts-ignore
+    folderLinks.value.sort((a, b) => b.lastModified - a.lastModified);
+  } else {
+    // 默认排序或其他排序逻辑
+  }
+};
+
+
+watch(sortOption, sortItems);
 
 watch(() => route.params.folderPath, (newPath) => {
   if (Array.isArray(newPath)) {
@@ -325,9 +382,20 @@ defineExpose({
         </Button>
       </a-upload>
 
-      <Button @click="createFolder">
+      <Button style="margin-right: 10px;" @click="createFolder">
           创建文件夹
       </Button>
+
+      <!-- <Button style="margin-right: 10px;" @click="toggleOrder">
+        {{ isReversed ? '按上传日期排序' : '按上传日期倒序' }}
+      </Button> -->
+      <a-select v-model:value="sortOption" style="width: 140px; margin-right: 0px;">
+        <!-- <a-select-option value="default">默认排序</a-select-option> -->
+        <a-select-option value="name-asc">名称降序</a-select-option>
+        <a-select-option value="name-desc">名称升序</a-select-option>
+        <a-select-option value="date-asc">上传日期降序</a-select-option>
+        <a-select-option value="date-desc">上传日期升序</a-select-option>
+      </a-select>
     </div>
 
     <div class="folders" v-if="folderLinks.length > 0">
