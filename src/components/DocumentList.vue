@@ -2,7 +2,7 @@
 import { ref, watch, h } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
-import { FolderOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue';
+import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined } from '@ant-design/icons-vue';
 import { Button, Checkbox, Modal, message } from 'ant-design-vue';
 // @ts-ignore
 import { saveAs } from 'file-saver';
@@ -374,9 +374,9 @@ defineExpose({
     </a-breadcrumb>
 
     <div class="actions">
-      <a-button class="a_button_class" @click="toggleSelectMode">{{ isSelectMode ? '取消选择' : '批量选择' }}</a-button>
+      <a-button class="a_button_class" :icon="h(CheckCircleOutlined)" @click="toggleSelectMode">{{ isSelectMode ? '取消选择' : '批量选择' }}</a-button>
       <a-button class="a_button_class" v-if="selectedImages.size > 0" danger @click="deleteSelectedImages">批量删除</a-button>
-      <a-button class="a_button_class" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑' }}</a-button>
+      <a-button class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑' }}</a-button>
       <a-button class="a_button_class" v-if="selectedImages.size > 0" @click="downloadSelectedImages">下载选中的图片</a-button>
 
       <a-upload
@@ -387,20 +387,20 @@ defineExpose({
         :show-upload-list="false"
         class="a_button_class"
       >
-        <Button class="a_button_class">
+        <Button :icon="h(UploadOutlined)" class="a_button_class">
           上传图片
         </Button>
       </a-upload>
 
-      <Button class="a_button_class" @click="createFolder">
+      <Button :icon="h(FolderAddOutlined)" class="a_button_class" @click="createFolder">
           创建文件夹
       </Button>
 
-      <a-select v-model:value="sortOption" style="width: 140px; margin-right: 0px;">
+      <a-select v-model:value="sortOption" style="width: 110px; margin-right: 0px;">
         <a-select-option value="name-asc">名称降序</a-select-option>
         <a-select-option value="name-desc">名称升序</a-select-option>
-        <a-select-option value="date-asc">上传日期降序</a-select-option>
-        <a-select-option value="date-desc">上传日期升序</a-select-option>
+        <a-select-option value="date-asc">日期降序</a-select-option>
+        <a-select-option value="date-desc">日期升序</a-select-option>
       </a-select>
     </div>
 
