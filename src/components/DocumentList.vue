@@ -374,24 +374,25 @@ defineExpose({
     </a-breadcrumb>
 
     <div class="actions">
-      <a-button style="margin-right: 10px;" @click="toggleSelectMode">{{ isSelectMode ? '取消选择' : '批量选择' }}</a-button>
-      <a-button style="margin-right: 10px;" v-if="selectedImages.size > 0" danger @click="deleteSelectedImages">批量删除</a-button>
-      <a-button style="margin-right: 10px;" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑' }}</a-button>
-      <a-button style="margin-right: 10px;" v-if="selectedImages.size > 0" @click="downloadSelectedImages">下载选中的图片</a-button>
+      <a-button class="a_button_class" @click="toggleSelectMode">{{ isSelectMode ? '取消选择' : '批量选择' }}</a-button>
+      <a-button class="a_button_class" v-if="selectedImages.size > 0" danger @click="deleteSelectedImages">批量删除</a-button>
+      <a-button class="a_button_class" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑' }}</a-button>
+      <a-button class="a_button_class" v-if="selectedImages.size > 0" @click="downloadSelectedImages">下载选中的图片</a-button>
 
       <a-upload
-        style="margin-right: 10px;"
+        style="margin-right: 0px;"
         :before-upload="beforeUpload"
         :custom-request="uploadNextFile"
         multiple
         :show-upload-list="false"
+        class="a_button_class"
       >
-        <Button>
-          点击上传图片
+        <Button class="a_button_class">
+          上传图片
         </Button>
       </a-upload>
 
-      <Button style="margin-right: 10px;" @click="createFolder">
+      <Button class="a_button_class" @click="createFolder">
           创建文件夹
       </Button>
 
@@ -437,6 +438,12 @@ defineExpose({
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.a_button_class {
+  color: inherit !important;
+  background: inherit;
+  margin-right: 10px;
 }
 
 .delete-button {

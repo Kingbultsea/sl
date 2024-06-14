@@ -84,3 +84,11 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+.ant-select-selector {
+  background: inherit !important;
+}
+
+.ant-select-selection-item {
+  color: var(--text-color);
+}
