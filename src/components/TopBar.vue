@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineProps, defineEmits, ref } from 'vue';
+import { defineProps, defineEmits } from 'vue';
 
 const props = defineProps<{ isDarkMode: boolean; uploadPath: string }>();
 const emit = defineEmits(['update:isDarkMode', 'refresh']);

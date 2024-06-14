@@ -37,7 +37,7 @@ const refreshDocumentList = () => {
 <template>
   <div>
     <TopBar @refresh="refreshDocumentList" :isDarkMode="isDarkMode" @update:isDarkMode="isDarkMode = $event" :uploadPath="uploadPath" />
-    <DocumentList ref="documentListRef" />
+    <DocumentList :isDarkMode="isDarkMode" ref="documentListRef" />
   </div>
 </template>
 

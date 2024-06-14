@@ -10,6 +10,9 @@ import { saveAs } from 'file-saver';
 const route = useRoute();
 const router = useRouter();
 
+const props = defineProps<{ isDarkMode: boolean }>();
+
+
 const imageUrls = ref<{ url: string, name: string, lastModified: Date, fileSize: string }[]>([]);
 const folderLinks = ref<{ url: string, name: string, lastModified: Date, fileSize: string }[]>([]);
 const otherFiles = ref<{ url: string, name: string, lastModified: Date, fileSize:string }[]>([]);
@@ -402,7 +405,7 @@ defineExpose({
 
 <template>
   <div>
-    <a-breadcrumb style="margin-bottom: 20px;">
+    <a-breadcrumb :style="{ backgroundColor: props.isDarkMode ? 'white' : 'inherit', marginBottom: '20px' }">
       <a-breadcrumb-item>
         <a @click.prevent="router.push('/')" href="#">
           首页
