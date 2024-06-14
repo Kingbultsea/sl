@@ -470,7 +470,7 @@ defineExpose({
       <div v-for="item in imageUrls" :key="item.url" class="image-wrapper" @click="isSelectMode ? handleSelectImage(item.url, !selectedImages.has(item.url)) : null">
         <div class="image-container">
           <Checkbox v-if="isSelectMode" @change="(e) => handleSelectImage(item.url, e.target.checked)" class="image-checkbox" :checked="selectedImages.has(item.url)" />
-          <a-image :src="item.url" width="200px" :preview="!isSelectMode" :lazy="true" />
+          <a-image :src="item.url" width="200px" :preview="!isSelectMode" />
           <div class="image-name">{{ item.name }}</div>
           <div v-if="isEditMode" class="delete-button">
             <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
