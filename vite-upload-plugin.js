@@ -47,7 +47,7 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
   storage: storage,
-  fileFilter: fileFilter
+  // fileFilter: fileFilter
 });
 
 export default function uploadPlugin() {
@@ -65,6 +65,12 @@ export default function uploadPlugin() {
 
       // 文件上传处理
       app.post('/upload', upload.array('files', 10), (req, res) => {
+        req.files.forEach(file => {
+          const decodedFileName = decodeURIComponent(file.originalname);
+          const filePath = path.join(file.destination, decodedFileName);
+          fs.renameSync(file.path, filePath); // 重命名文件以确保文件名正确
+        });
+
         console.log('Files:', req.files); // 打印上传的文件信息
         console.log('Body:', req.body); // 打印请求体信息
         res.send('Files uploaded successfully');
@@ -163,30 +169,17 @@ export default function uploadPlugin() {
 
       server.middlewares.use(app);
 
-      // 检查并杀掉占用8089端口的进程
-      exec('lsof -ti:8089 | xargs kill -9', (err, stdout, stderr) => {
-        if (err) {
-          console.error(`Error killing process on port 8089: ${err}`);
+      // 启动 http-server 服务
+      const httpServerCommand = 'http-server ./images -p 8089 --cors -c-1';
+      exec(httpServerCommand, (error, stdout, stderr) => {
+        if (error) {
+          console.error(`Error starting http-server: ${error}`);
+          return;
         }
-        if (stdout) {
-          console.log(`Killed process on port 8089: ${stdout}`);
-        }
+        console.log(`http-server output: ${stdout}`);
         if (stderr) {
-          console.error(`Error output killing process on port 8089: ${stderr}`);
+          console.error(`http-server error output: ${stderr}`);
         }
-
-        // 启动 http-server 服务
-        const httpServerCommand = 'http-server ./images -p 8089 --cors -c-1';
-        exec(httpServerCommand, (error, stdout, stderr) => {
-          if (error) {
-            console.error(`Error starting http-server: ${error}`);
-            return;
-          }
-          console.log(`http-server output: ${stdout}`);
-          if (stderr) {
-            console.error(`http-server error output: ${stderr}`);
-          }
-        });
       });
     }
   };

@@ -53,8 +53,8 @@ const fetchHtmlAndExtractImages = async () => {
   otherFiles.value = [];
   selectedImages.value.clear();
   selectedFiles.value.clear();
-  isSelectMode.value = false;
-  isEditMode.value = false;
+  // isSelectMode.value = false;
+  // isEditMode.value = false;
 
   try {
     const curUrl = `${IMAGE_BASE_URL}${folderPath.value}`;
@@ -148,7 +148,10 @@ const fileQueue = ref<any[]>([]);
 const isUploading = ref(false);
 
 const beforeUpload = (file: any) => {
-  fileQueue.value.push(file);
+  // 对文件名进行编码
+  const encodedFile = new File([file], encodeURIComponent(file.name), { type: file.type });
+  fileQueue.value.push(encodedFile);
+
   if (!isUploading.value) {
     uploadNextFile();
   }
@@ -478,8 +481,10 @@ defineExpose({
       <div v-for="file in otherFiles" :key="file.url" class="file-wrapper" @click="isSelectMode ? handleSelectFile(file.url, !selectedFiles.has(file.url)) : null">
         <div class="file-container">
           <Checkbox v-if="isSelectMode" @change="(e) => handleSelectFile(file.url, e.target.checked)" class="file-checkbox" :checked="selectedFiles.has(file.url)" />
-          <FileOutlined class="file-icon" />
-          <div>{{ file.fileSize }}</div>
+          <div style="display: flex; align-items: center;margin-bottom: 10px;">
+            <FileOutlined class="file-icon" />
+            <div>{{ file.fileSize }}</div>
+          </div>
           <div class="file-name">{{ file.name }}</div>
           <div v-if="isEditMode" class="delete-button" style="top: 0px">
             <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
@@ -541,6 +546,12 @@ defineExpose({
 
 .folder-name {
   font-size: 1em;
+  word-wrap: break-word; /* 支持单词换行 */
+  word-break: break-all; /* 支持任意字符换行 */
+  white-space: normal; /* 允许文本换行 */
+  display: block; /* 确保块级显示 */
+  text-align: left; /* 文本左对齐 */
+  width: 100%; /* 占满容器宽度 */
 }
 
 .image-wrapper {
