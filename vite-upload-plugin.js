@@ -47,7 +47,7 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
   storage: storage,
-  // fileFilter: fileFilter
+  fileFilter: fileFilter
 });
 
 export default function uploadPlugin() {
@@ -163,17 +163,30 @@ export default function uploadPlugin() {
 
       server.middlewares.use(app);
 
-      // 启动 http-server 服务
-      const httpServerCommand = 'http-server ./images -p 8089 --cors -c-1';
-      exec(httpServerCommand, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Error starting http-server: ${error}`);
-          return;
+      // 检查并杀掉占用8089端口的进程
+      exec('lsof -ti:8089 | xargs kill -9', (err, stdout, stderr) => {
+        if (err) {
+          console.error(`Error killing process on port 8089: ${err}`);
         }
-        console.log(`http-server output: ${stdout}`);
+        if (stdout) {
+          console.log(`Killed process on port 8089: ${stdout}`);
+        }
         if (stderr) {
-          console.error(`http-server error output: ${stderr}`);
+          console.error(`Error output killing process on port 8089: ${stderr}`);
         }
+
+        // 启动 http-server 服务
+        const httpServerCommand = 'http-server ./images -p 8089 --cors -c-1';
+        exec(httpServerCommand, (error, stdout, stderr) => {
+          if (error) {
+            console.error(`Error starting http-server: ${error}`);
+            return;
+          }
+          console.log(`http-server output: ${stdout}`);
+          if (stderr) {
+            console.error(`http-server error output: ${stderr}`);
+          }
+        });
       });
     }
   };
