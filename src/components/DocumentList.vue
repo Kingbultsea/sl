@@ -3,7 +3,7 @@ import { ref, watch, h } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
 import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined } from '@ant-design/icons-vue';
-import { Button, Checkbox, Modal, message } from 'ant-design-vue';
+import { Checkbox, Modal, message } from 'ant-design-vue';
 // @ts-ignore
 import { saveAs } from 'file-saver';
 
@@ -373,6 +373,8 @@ defineExpose({
       </a-breadcrumb-item>
     </a-breadcrumb>
 
+    <a-divider />
+
     <div class="actions">
       <a-button class="a_button_class" :icon="h(CheckCircleOutlined)" @click="toggleSelectMode">{{ isSelectMode ? '取消选择' : '批量选择' }}</a-button>
       <a-button class="a_button_class" v-if="selectedImages.size > 0" danger @click="deleteSelectedImages">批量删除</a-button>
@@ -387,14 +389,14 @@ defineExpose({
         :show-upload-list="false"
         class="a_button_class"
       >
-        <Button :icon="h(UploadOutlined)" class="a_button_class">
+        <a-button :icon="h(UploadOutlined)" class="a_button_class">
           上传图片
-        </Button>
+        </a-button>
       </a-upload>
 
-      <Button :icon="h(FolderAddOutlined)" class="a_button_class" @click="createFolder">
+      <a-button :icon="h(FolderAddOutlined)" class="a_button_class" @click="createFolder">
           创建文件夹
-      </Button>
+      </a-button>
 
       <a-select v-model:value="sortOption" style="width: 110px; margin-right: 0px;">
         <a-select-option value="name-asc">名称降序</a-select-option>

@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { defineProps, defineEmits, ref } from 'vue';
-import { Upload, message, Button } from 'ant-design-vue';
-import { UploadOutlined } from '@ant-design/icons-vue';
 
 const props = defineProps<{ isDarkMode: boolean; uploadPath: string }>();
 const emit = defineEmits(['update:isDarkMode', 'refresh']);
