@@ -10,9 +10,9 @@ import { saveAs } from 'file-saver';
 const route = useRoute();
 const router = useRouter();
 
-const imageUrls = ref<{ url: string, name: string, lastModified: Date }[]>([]);
-const folderLinks = ref<{ url: string, name: string, lastModified: Date }[]>([]);
-const otherFiles = ref<{ url: string, name: string, lastModified: Date }[]>([]);
+const imageUrls = ref<{ url: string, name: string, lastModified: Date, fileSize: string }[]>([]);
+const folderLinks = ref<{ url: string, name: string, lastModified: Date, fileSize: string }[]>([]);
+const otherFiles = ref<{ url: string, name: string, lastModified: Date, fileSize:string }[]>([]);
 const selectedImages = ref<Set<string>>(new Set());
 const selectedFiles = ref<Set<string>>(new Set());
 const isSelectMode = ref(false);
@@ -65,6 +65,7 @@ const fetchHtmlAndExtractImages = async () => {
     const doc = parser.parseFromString(html, 'text/html');
     const links = doc.querySelectorAll('.display-name a');
     const dates = doc.querySelectorAll('.last-modified');
+    const sizes = doc.querySelectorAll('.file-size code'); // 获取文件大小的元素
 
     const validImageExtensions = ['.jpeg', '.jpg', '.png', '.gif'];
 
@@ -72,18 +73,19 @@ const fetchHtmlAndExtractImages = async () => {
       let fileName = link.textContent?.trim();
       const lastModifiedText = dates[index].textContent?.trim();
       const lastModified = parseDate(lastModifiedText!);
+      const fileSize = sizes[index].textContent?.trim() || '0'; // 获取文件大小
 
       if (fileName!.endsWith('/')) {
         if (fileName !== '../') {
           fileName = fileName?.replace(/\/$/, ''); // 去除末尾的斜杠
-          folderLinks.value.push({ url: curUrl + fileName, name: fileName!, lastModified });
+          folderLinks.value.push({ url: curUrl + fileName, name: fileName!, lastModified, fileSize });
         }
       } else {
         const extension = fileName!.split('.').pop()?.toLowerCase();
         if (validImageExtensions.includes(`.${extension}`)) {
-          imageUrls.value.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified });
+          imageUrls.value.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize });
         } else {
-          otherFiles.value.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified });
+          otherFiles.value.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize });
         }
       }
     });
@@ -477,6 +479,7 @@ defineExpose({
         <div class="file-container">
           <Checkbox v-if="isSelectMode" @change="(e) => handleSelectFile(file.url, e.target.checked)" class="file-checkbox" :checked="selectedFiles.has(file.url)" />
           <FileOutlined class="file-icon" />
+          <div>{{ file.fileSize }}</div>
           <div class="file-name">{{ file.name }}</div>
           <div v-if="isEditMode" class="delete-button" style="top: 0px">
             <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
@@ -574,6 +577,7 @@ defineExpose({
 .file-container {
   position: relative;
   width: 200px;
+  height: max-content;
   overflow: hidden;
   border: 1px solid #ddd;
   border-radius: 8px;
@@ -581,7 +585,9 @@ defineExpose({
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer; /* Add cursor to indicate clickability */
   display: flex;
-  align-items: center;
+  padding-top: 10px;
+  flex-direction: column;
+  /* align-items: center; */
 }
 
 .file-container:hover {
@@ -599,6 +605,7 @@ defineExpose({
 .file-icon {
   font-size: 2em;
   margin-right: 10px;
+  margin-left: 10px;
   color: #1890ff;
 }
 
@@ -609,7 +616,7 @@ img {
 }
 
 .image-name, .file-name {
-  position: absolute;
+  /* position: absolute; */
   bottom: 0;
   width: 100%;
   background: rgba(0, 0, 0, 0.5);
