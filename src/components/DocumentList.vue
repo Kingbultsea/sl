@@ -44,6 +44,7 @@ const parseDate = (dateString: string) => {
   return new Date(formattedDateString);
 };
 
+// 获取文件列表
 const fetchHtmlAndExtractImages = async () => {
   folderLinks.value = [];
   imageUrls.value = [];
@@ -67,7 +68,6 @@ const fetchHtmlAndExtractImages = async () => {
       let fileName = link.textContent?.trim();
       const lastModifiedText = dates[index].textContent?.trim();
       const lastModified = parseDate(lastModifiedText!);
-      // const lastModified = new Date(lastModifiedText!.replace(/(\d+)-(\w+)-(\d+)/, '$2 $1, $3')); // 根据具体格式修改
 
       console.log(lastModified, lastModifiedText);
 
@@ -90,10 +90,12 @@ const fetchHtmlAndExtractImages = async () => {
   }
 };
 
+// 导航到指定文件夹
 const navigateToFolder = (folderName: string) => {
   router.push(`${folderPath.value}${folderPath.value === '/' ? '' : '/' }${folderName}`);
 };
 
+// 批量选择
 const handleSelectImage = (url: string, checked: boolean) => {
   if (checked) {
     selectedImages.value.add(url);
@@ -102,10 +104,12 @@ const handleSelectImage = (url: string, checked: boolean) => {
   }
 };
 
+// 切换选择模式
 const toggleSelectMode = () => {
   isSelectMode.value = !isSelectMode.value;
 };
 
+// 切换编辑模式
 const toggleEditMode = () => {
   isEditMode.value = !isEditMode.value;
 };
@@ -133,9 +137,10 @@ const beforeUpload = (file: any) => {
   if (!isUploading.value) {
     uploadNextFile();
   }
-  return false; // Prevent default upload behavior
+  return false; // 手动处理上传事件
 };
 
+// 处理批量上传功能
 const uploadNextFile = async () => {
   if (fileQueue.value.length === 0) {
     isUploading.value = false;
@@ -177,6 +182,7 @@ const uploadNextFile = async () => {
   }
 };
 
+// 创建文件夹
 const createFolder = () => {
   let inputValue = '';
 
@@ -208,6 +214,7 @@ const createFolder = () => {
   });
 };
 
+// 编辑文件夹名称
 const editFolderName = (oldName: string) => {
   let inputValue = oldName;
 
@@ -241,6 +248,7 @@ const editFolderName = (oldName: string) => {
   });
 };
 
+// 删除文件夹
 const confirmDeleteFolder = (folderName: string) => {
   Modal.confirm({
     title: '删除确认',
@@ -307,6 +315,7 @@ const deleteSelectedImages = async () => {
 
 const sortOption = ref('name-asc');
 
+// 排序功能
 const sortItems = () => {
   if (sortOption.value === 'name-asc') {
     imageUrls.value.sort((a, b) => a.name.localeCompare(b.name));
@@ -329,8 +338,8 @@ const sortItems = () => {
   }
 };
 
-
-watch(sortOption, sortItems);
+// 当下拉选择的值变化，需要重新排序
+watch(sortOption, sortItems, { flush: 'post', immediate: false });
 
 watch(() => route.params.folderPath, (newPath) => {
   if (Array.isArray(newPath)) {
@@ -386,11 +395,7 @@ defineExpose({
           创建文件夹
       </Button>
 
-      <!-- <Button style="margin-right: 10px;" @click="toggleOrder">
-        {{ isReversed ? '按上传日期排序' : '按上传日期倒序' }}
-      </Button> -->
       <a-select v-model:value="sortOption" style="width: 140px; margin-right: 0px;">
-        <!-- <a-select-option value="default">默认排序</a-select-option> -->
         <a-select-option value="name-asc">名称降序</a-select-option>
         <a-select-option value="name-desc">名称升序</a-select-option>
         <a-select-option value="date-asc">上传日期降序</a-select-option>
@@ -515,7 +520,7 @@ img {
   color: #fff;
   text-align: center;
   padding: 5px 0;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 0.3s ease;
 }
 
