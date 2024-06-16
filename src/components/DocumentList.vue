@@ -6,6 +6,7 @@ import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, Uplo
 import { Checkbox, Modal, message } from 'ant-design-vue';
 // @ts-ignore
 import { saveAs } from 'file-saver';
+import { vIntersectionObserver } from '@vueuse/components'
 
 const route = useRoute();
 const router = useRouter();
@@ -15,7 +16,7 @@ const props = defineProps<{ isDarkMode: boolean }>();
 
 const imageUrls = ref<{ url: string, name: string, lastModified: Date, fileSize: string }[]>([]);
 const folderLinks = ref<{ url: string, name: string, lastModified: Date, fileSize: string }[]>([]);
-const otherFiles = ref<{ url: string, name: string, lastModified: Date, fileSize:string }[]>([]);
+const otherFiles = ref<{ url: string, name: string, lastModified: Date, fileSize: string }[]>([]);
 const selectedImages = ref<Set<string>>(new Set());
 const selectedFiles = ref<Set<string>>(new Set());
 const isSelectMode = ref(false);
@@ -50,14 +51,20 @@ const parseDate = (dateString: string) => {
 };
 
 // 获取文件列表
-const fetchHtmlAndExtractImages = async () => {
+let intervalId: any; // 用于存储 setInterval 的 ID
+let currentLinks: any[] = []; // 存储当前的链接列表
+
+const fetchHtmlAndExtractImages = async (): Promise<void> => {
   folderLinks.value = [];
   imageUrls.value = [];
   otherFiles.value = [];
   selectedImages.value.clear();
   selectedFiles.value.clear();
-  // isSelectMode.value = false;
-  // isEditMode.value = false;
+  currentLinks = [];
+
+  if (intervalId) {
+    clearInterval(intervalId);
+  }
 
   try {
     const curUrl = `${IMAGE_BASE_URL}${folderPath.value}`;
@@ -86,13 +93,25 @@ const fetchHtmlAndExtractImages = async () => {
       } else {
         const extension = fileName!.split('.').pop()?.toLowerCase();
         if (validImageExtensions.includes(`.${extension}`)) {
-          imageUrls.value.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize });
+          currentLinks.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize });
         } else {
           otherFiles.value.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize });
         }
       }
     });
 
+    // 定时推送数据到 imageUrls，每0.5秒推送10个数据
+    let index = 0;
+    intervalId = setInterval(() => {
+      const batchSize = 10; // 每次推送的数量
+      if (index < currentLinks.length) {
+        const nextBatch = currentLinks.slice(index, index + batchSize);
+        imageUrls.value.push(...nextBatch);
+        index += batchSize;
+      } else {
+        clearInterval(intervalId); // 所有数据推送完成后清除 interval
+      }
+    }, 500);
     sortItems(); // 加载数据后进行排序
   } catch (error) {
     console.error('Error fetching HTML:', error);
@@ -101,7 +120,7 @@ const fetchHtmlAndExtractImages = async () => {
 
 // 导航到指定文件夹
 const navigateToFolder = (folderName: string) => {
-  router.push(`${folderPath.value}${folderPath.value === '/' ? '' : '/' }${folderName}`);
+  router.push(`${folderPath.value}${folderPath.value === '/' ? '' : '/'}${folderName}`);
 };
 
 // 批量选择
@@ -296,7 +315,7 @@ const confirmDeleteImage = (imageName: string) => {
     content: `你确认要删除图片 ${imageName} 吗？`,
     onOk() {
       const imagePath = `${folderPath.value}/${imageName}`;
-      return axios.post('/delete-files', { files: [ imagePath ] })
+      return axios.post('/delete-files', { files: [imagePath] })
         .then(() => {
           message.success('图片删除成功');
           fetchHtmlAndExtractImages(); // 触发刷新事件
@@ -370,16 +389,16 @@ const sortItems = () => {
   } else if (sortOption.value === 'date-asc') {
     // @ts-ignore
     imageUrls.value.sort((a, b) => a.lastModified - b.lastModified);
-     // @ts-ignore
+    // @ts-ignore
     folderLinks.value.sort((a, b) => a.lastModified - b.lastModified);
-     // @ts-ignore
+    // @ts-ignore
     otherFiles.value.sort((a, b) => a.lastModified - b.lastModified);
   } else if (sortOption.value === 'date-desc') {
-     // @ts-ignore
+    // @ts-ignore
     imageUrls.value.sort((a, b) => b.lastModified - a.lastModified);
-     // @ts-ignore
+    // @ts-ignore
     folderLinks.value.sort((a, b) => b.lastModified - a.lastModified);
-     // @ts-ignore
+    // @ts-ignore
     otherFiles.value.sort((a, b) => b.lastModified - a.lastModified);
   } else {
     // 默认排序或其他排序逻辑
@@ -416,7 +435,8 @@ defineExpose({
           {{ segment }}
         </template>
         <template v-else>
-          <a @click.prevent="router.push('/' + folderPath.split('/').filter(Boolean).slice(0, index + 1).join('/'))" href="#">{{ segment }}</a>
+          <a @click.prevent="router.push('/' + folderPath.split('/').filter(Boolean).slice(0, index + 1).join('/'))"
+            href="#">{{ segment }}</a>
         </template>
       </a-breadcrumb-item>
     </a-breadcrumb>
@@ -424,26 +444,25 @@ defineExpose({
     <a-divider />
 
     <div class="actions">
-      <a-button class="a_button_class" :icon="h(CheckCircleOutlined)" @click="toggleSelectMode">{{ isSelectMode ? '取消选择' : '批量选择' }}</a-button>
-      <a-button class="a_button_class" :icon="h(DeleteOutlined)" v-if="selectedImages.size > 0 || selectedFiles.size > 0" danger @click="deleteSelectedImages">批量删除</a-button>
-      <a-button class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑' }}</a-button>
-      <a-button class="a_button_class" :icon="h(DownloadOutlined)" v-if="selectedImages.size > 0 || selectedFiles.size > 0" @click="downloadSelectedItems">下载选中的文件</a-button>
+      <a-button class="a_button_class" :icon="h(CheckCircleOutlined)" @click="toggleSelectMode">{{ isSelectMode ? '取消选择'
+        :
+        '批量选择' }}</a-button>
+      <a-button class="a_button_class" :icon="h(DeleteOutlined)"
+        v-if="selectedImages.size > 0 || selectedFiles.size > 0" danger @click="deleteSelectedImages">批量删除</a-button>
+      <a-button class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑'
+        }}</a-button>
+      <a-button class="a_button_class" :icon="h(DownloadOutlined)"
+        v-if="selectedImages.size > 0 || selectedFiles.size > 0" @click="downloadSelectedItems">下载选中的文件</a-button>
 
-      <a-upload
-        style="margin-right: 0px;"
-        :before-upload="beforeUpload"
-        :custom-request="uploadNextFile"
-        multiple
-        :show-upload-list="false"
-        class="a_button_class"
-      >
+      <a-upload style="margin-right: 0px;" :before-upload="beforeUpload" :custom-request="uploadNextFile" multiple
+        :show-upload-list="false" class="a_button_class">
         <a-button :icon="h(UploadOutlined)" class="a_button_class">
           上传文件
         </a-button>
       </a-upload>
 
       <a-button :icon="h(FolderAddOutlined)" class="a_button_class" @click="createFolder">
-          创建文件夹
+        创建文件夹
       </a-button>
 
       <a-select v-model:value="sortOption" style="width: 110px; margin-right: 0px;">
@@ -462,28 +481,40 @@ defineExpose({
         </a>
         <div>
           <a-button v-if="isEditMode" type="link" :icon="h(EditOutlined)" @click="editFolderName(folder.name)" />
-          <a-button v-if="isEditMode" type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFolder(folder.name)" />
+          <a-button v-if="isEditMode" type="link" danger :icon="h(DeleteOutlined)"
+            @click="confirmDeleteFolder(folder.name)" />
         </div>
       </div>
     </div>
     <div class="gallery">
-      <div v-for="item in imageUrls" :key="item.url" class="image-wrapper" @click="isSelectMode ? handleSelectImage(item.url, !selectedImages.has(item.url)) : null">
-        <div class="image-container">
-          <Checkbox v-if="isSelectMode" @change="(e) => handleSelectImage(item.url, e.target.checked)" class="image-checkbox" :checked="selectedImages.has(item.url)" />
-          <a-image :src="item.url" width="200px" :preview="!isSelectMode" />
-          <div class="image-name">{{ item.name }}</div>
-          <div v-if="isEditMode" class="delete-button">
-            <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
+      <a-image-preview-group>
+        <div v-for="item in imageUrls" :key="item.url" class="image-wrapper"
+          @click="isSelectMode ? handleSelectImage(item.url, !selectedImages.has(item.url)) : null">
+          <div class="image-container">
+            <Checkbox v-if="isSelectMode" @change="(e) => handleSelectImage(item.url, e.target.checked)"
+              class="image-checkbox" :checked="selectedImages.has(item.url)" />
+            <!-- <a-image v-lazy="item.url" width="200px" :preview="!isSelectMode" /> -->
+            <!-- <img class="mini-cover" v-lazy="item.url" width="100%" height="400"> -->
+            <a-image :src="item.url" width="200px" :preview="!isSelectMode" />
+            <!-- <LazyLoadImage :src="item.url" :preview="!isSelectMode" /> -->
+            <!-- <LazyLoadImage :src="item.url" :preview="!isSelectMode" /> -->
+            <!-- <img v-lazy="item.url"  width="200px" > -->
+            <div class="image-name">{{ item.name }}</div>
+            <div v-if="isEditMode" class="delete-button">
+              <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
+            </div>
           </div>
         </div>
-      </div>
+      </a-image-preview-group>
     </div>
 
     <div v-if="otherFiles.length > 0" style="text-align: left;margin-top: 30px;">其他文件</div>
     <div class="other-files">
-      <div v-for="file in otherFiles" :key="file.url" class="file-wrapper" @click="isSelectMode ? handleSelectFile(file.url, !selectedFiles.has(file.url)) : null">
+      <div v-for="file in otherFiles" :key="file.url" class="file-wrapper"
+        @click="isSelectMode ? handleSelectFile(file.url, !selectedFiles.has(file.url)) : null">
         <div class="file-container">
-          <Checkbox v-if="isSelectMode" @change="(e) => handleSelectFile(file.url, e.target.checked)" class="file-checkbox" :checked="selectedFiles.has(file.url)" />
+          <Checkbox v-if="isSelectMode" @change="(e) => handleSelectFile(file.url, e.target.checked)"
+            class="file-checkbox" :checked="selectedFiles.has(file.url)" />
           <div style="display: flex; align-items: center;margin-bottom: 10px;">
             <FileOutlined class="file-icon" />
             <div>{{ file.fileSize }}</div>
@@ -499,7 +530,9 @@ defineExpose({
 </template>
 
 <style scoped>
-.folders, .gallery, .other-files {
+.folders,
+.gallery,
+.other-files {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -549,12 +582,18 @@ defineExpose({
 
 .folder-name {
   font-size: 1em;
-  word-wrap: break-word; /* 支持单词换行 */
-  word-break: break-all; /* 支持任意字符换行 */
-  white-space: normal; /* 允许文本换行 */
-  display: block; /* 确保块级显示 */
-  text-align: left; /* 文本左对齐 */
-  width: 100%; /* 占满容器宽度 */
+  word-wrap: break-word;
+  /* 支持单词换行 */
+  word-break: break-all;
+  /* 支持任意字符换行 */
+  white-space: normal;
+  /* 允许文本换行 */
+  display: block;
+  /* 确保块级显示 */
+  text-align: left;
+  /* 文本左对齐 */
+  width: 100%;
+  /* 占满容器宽度 */
 }
 
 .image-wrapper {
@@ -569,7 +608,8 @@ defineExpose({
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
-  cursor: pointer; /* Add cursor to indicate clickability */
+  cursor: pointer;
+  /* Add cursor to indicate clickability */
 }
 
 .image-container:hover {
@@ -597,7 +637,8 @@ defineExpose({
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
-  cursor: pointer; /* Add cursor to indicate clickability */
+  cursor: pointer;
+  /* Add cursor to indicate clickability */
   display: flex;
   padding-top: 10px;
   flex-direction: column;
@@ -629,7 +670,8 @@ img {
   object-fit: cover;
 }
 
-.image-name, .file-name {
+.image-name,
+.file-name {
   /* position: absolute; */
   bottom: 0;
   width: 100%;
@@ -641,7 +683,8 @@ img {
   transition: opacity 0.3s ease;
 }
 
-.image-wrapper:hover .image-name, .file-wrapper:hover .file-name {
+.image-wrapper:hover .image-name,
+.file-wrapper:hover .file-name {
   opacity: 1;
 }
 
@@ -649,5 +692,4 @@ img {
   display: flex;
   margin-bottom: 20px;
 }
-
 </style>
