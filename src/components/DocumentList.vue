@@ -112,6 +112,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
         clearInterval(intervalId); // 所有数据推送完成后清除 interval
       }
     }, 500);
+    
     sortItems(); // 加载数据后进行排序
   } catch (error) {
     console.error('Error fetching HTML:', error);
