@@ -6,7 +6,6 @@ import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, Uplo
 import { Checkbox, Modal, message } from 'ant-design-vue';
 // @ts-ignore
 import { saveAs } from 'file-saver';
-import { vIntersectionObserver } from '@vueuse/components'
 
 const route = useRoute();
 const router = useRouter();
@@ -101,8 +100,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     });
 
     // 定时推送数据到 imageUrls，每0.5秒推送10个数据
-    let index = 0;
-    intervalId = setInterval(() => {
+    const fn = () => {
       const batchSize = 10; // 每次推送的数量
       if (index < currentLinks.length) {
         const nextBatch = currentLinks.slice(index, index + batchSize);
@@ -111,7 +109,10 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       } else {
         clearInterval(intervalId); // 所有数据推送完成后清除 interval
       }
-    }, 500);
+      return fn;
+    };
+    let index = 0;
+    intervalId = setInterval(fn(), 500);
     
     sortItems(); // 加载数据后进行排序
   } catch (error) {
