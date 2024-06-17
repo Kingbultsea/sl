@@ -164,6 +164,7 @@ const downloadSelectedItems = () => {
         const blob = await response.blob();
         saveAs(blob, url.split('/').pop()!);
       });
+      return Promise.resolve();
     },
   });
 };
