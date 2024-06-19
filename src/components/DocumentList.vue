@@ -76,7 +76,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     const dates = doc.querySelectorAll('.last-modified');
     const sizes = doc.querySelectorAll('.file-size code'); // 获取文件大小的元素
 
-    const validImageExtensions = ['.jpeg', '.jpg', '.png', '.gif'];
+    const validImageExtensions = ['.jpeg', '.jpg', '.png', '.gif', '.webp'];
 
     links.forEach((link, index) => {
       let fileName = link.textContent?.trim();
@@ -101,7 +101,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
 
     // 定时推送数据到 imageUrls，每0.5秒推送10个数据
     const fn = () => {
-      const batchSize = 10; // 每次推送的数量
+      const batchSize = 40; // 每次推送的数量
       if (index < currentLinks.length) {
         const nextBatch = currentLinks.slice(index, index + batchSize);
         imageUrls.value.push(...nextBatch);
