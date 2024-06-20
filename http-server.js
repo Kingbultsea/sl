@@ -1,5 +1,5 @@
 import http from 'http';
-import { createServer as createHttpServer } from 'http-server';
+import httpServer from 'http-server';
 import auth from 'http-auth';
 
 // 设置用户认证
@@ -10,9 +10,9 @@ const basic = auth.basic({
   callback(username === "admin" && password === "password");
 });
 
-// 创建http服务器
-const server = createHttpServer({
-  root: process.cwd(),
+// 创建http-server实例，根目录设置为 ./images
+const server = httpServer.createServer({
+  root: './images',
   robots: true,
   headers: {
     'Access-Control-Allow-Origin': '*',
@@ -25,10 +25,10 @@ const protectedServer = http.createServer((req, res) => {
   if (req.url.startsWith('/protected')) {
     // 保护 /protected 目录
     basic.check((req, res) => {
-      server.emit('request', req, res);
+      server.server.emit('request', req, res);
     })(req, res);
   } else {
-    server.emit('request', req, res);
+    server.server.emit('request', req, res);
   }
 });
 
