@@ -17,12 +17,14 @@ const server = httpServer.createServer({
   headers: {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept',
-  }
+  },
+  cache: -1 // 设置缓存为-1以实现`-c-1`效果
 });
 
 // 包装服务器以添加认证
 const protectedServer = http.createServer((req, res) => {
   if (req.url.startsWith('/protected')) {
+    console.log("protected", req.url);
     // 保护 /protected 目录
     basic.check((req, res) => {
       server.server.emit('request', req, res);

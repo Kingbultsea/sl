@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { exec } from 'child_process';
 import fs from 'fs';
+import "./http-server";
 
 const __dirname = path.resolve(); // 计算 __dirname
 const maxBuffer = 1024 * 1024 * 300; // 设置缓冲区大小为 300MB
@@ -171,17 +172,17 @@ export default function uploadPlugin() {
       server.middlewares.use(app);
 
       // 启动 http-server 服务
-      const httpServerCommand = 'http-server ./images -p 8089 --cors -c-1';
-      exec(httpServerCommand, { maxBuffer: maxBuffer }, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Error starting http-server: ${error}`);
-          return;
-        }
-        console.log(`http-server output: ${stdout}`);
-        if (stderr) {
-          console.error(`http-server error output: ${stderr}`);
-        }
-      });
+      // const httpServerCommand = 'http-server ./images -p 8089 --cors -c-1';
+      // exec(httpServerCommand, { maxBuffer: maxBuffer }, (error, stdout, stderr) => {
+      //   if (error) {
+      //     console.error(`Error starting http-server: ${error}`);
+      //     return;
+      //   }
+      //   console.log(`http-server output: ${stdout}`);
+      //   if (stderr) {
+      //     console.error(`http-server error output: ${stderr}`);
+      //   }
+      // });
     }
   };
 }

@@ -84,7 +84,9 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       const lastModified = parseDate(lastModifiedText!);
       const fileSize = sizes[index].textContent?.trim() || '0'; // 获取文件大小
 
-      if (fileName!.endsWith('/')) {
+      // console.log(fileName!.startsWith('protected'));
+
+      if (fileName!.endsWith('/') && !fileName!.startsWith('protected')) {
         if (fileName !== '../') {
           fileName = fileName?.replace(/\/$/, ''); // 去除末尾的斜杠
           folderLinks.value.push({ url: curUrl + fileName, name: fileName!, lastModified, fileSize });
