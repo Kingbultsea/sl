@@ -5,7 +5,7 @@ import { exec } from 'child_process';
 import fs from 'fs';
 
 const __dirname = path.resolve(); // 计算 __dirname
-const maxBuffer = 1024 * 1024 * 200; // 设置缓冲区大小为 10MB
+const maxBuffer = 1024 * 1024 * 300; // 设置缓冲区大小为 300MB
 
 // 确保目录存在
 const ensureDir = (dir) => {
