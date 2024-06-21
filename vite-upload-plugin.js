@@ -23,7 +23,7 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = req.body.uploadPath || '';
     const fullPath = path.join(__dirname, './images', uploadPath);
-    console.log('接受文件', fullPath);
+    // console.log('接受文件', fullPath);
     ensureDir(fullPath); // 确保目录存在
     cb(null, fullPath);
   },
@@ -73,8 +73,8 @@ export default function uploadPlugin() {
           fs.renameSync(file.path, filePath); // 重命名文件以确保文件名正确
         });
 
-        console.log('Files:', req.files); // 打印上传的文件信息
-        console.log('Body:', req.body); // 打印请求体信息
+        // console.log('Files:', req.files); // 打印上传的文件信息
+        // console.log('Body:', req.body); // 打印请求体信息
         res.send('Files uploaded successfully');
       });
 
@@ -86,7 +86,7 @@ export default function uploadPlugin() {
         }
 
         const fullPath = path.join(__dirname, './images', folderPath);
-        console.log('创建文件夹', fullPath);
+        // console.log('创建文件夹', fullPath);
 
         try {
           ensureDir(fullPath);
@@ -107,7 +107,7 @@ export default function uploadPlugin() {
         const oldPath = path.join(__dirname, './images', folderPath);
         const newPath = path.join(__dirname, './images', name);
 
-        console.log('修改文件夹名称', oldPath, '到', newPath);
+        // console.log('修改文件夹名称', oldPath, '到', newPath);
 
         try {
           fs.renameSync(oldPath, newPath);
@@ -126,7 +126,7 @@ export default function uploadPlugin() {
         }
 
         const fullPath = path.join(__dirname, './images', folderPath);
-        console.log('删除文件夹', fullPath);
+        // console.log('删除文件夹', fullPath);
 
         try {
           fs.rmdirSync(fullPath, { recursive: true });
@@ -146,7 +146,7 @@ export default function uploadPlugin() {
 
         const deletePromises = files.map(filePath => {
           const fullPath = path.join(__dirname, './images', filePath);
-          console.log('删除文件', fullPath);
+          // console.log('删除文件', fullPath);
 
           return new Promise((resolve, reject) => {
             fs.unlink(fullPath, (err) => {
