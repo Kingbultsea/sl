@@ -68,7 +68,14 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
   try {
     const curUrl = `${IMAGE_BASE_URL}${folderPath.value}`;
     const response = await axios.get(curUrl);
+    const auth = await axios.get(`${IMAGE_BASE_URL}/check-auth`).then((data) => {
+      console.log(data)
+      return true
+    }).catch(e => {
+      return false;
+    });
     const html = response.data;
+    console.log(auth, "auth file");
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
@@ -86,7 +93,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
 
       // console.log(fileName!.startsWith('protected'));
 
-      if (fileName!.endsWith('/') && !fileName!.startsWith('protected')) {
+      if (fileName!.endsWith('/') && (!fileName!.startsWith('protected') || auth)) {
         if (fileName !== '../') {
           fileName = fileName?.replace(/\/$/, ''); // 去除末尾的斜杠
           folderLinks.value.push({ url: curUrl + fileName, name: fileName!, lastModified, fileSize });
