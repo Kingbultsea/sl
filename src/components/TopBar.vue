@@ -32,7 +32,7 @@ onMounted(() => {
       <a-badge :dot="isBadgeVisible"  style="margin-right: 20px;">
         <a-button target="_blank" type="link"
           href="http://192.168.1.229:8089/%E4%B8%9C%E9%A6%86%E5%91%98%E5%B7%A5%E5%BF%85%E8%AF%BB%E6%89%8B%E5%86%8C.pdf"
-          @click="handleBadgeClick">东莞员工必读手册</a-button>
+          @click="handleBadgeClick">东馆员工必读手册</a-button>
       </a-badge>
       <a-switch checked-children="🌙" un-checked-children="☀️" :checked="props.isDarkMode" @change="toggleDarkMode" />
     </div>
