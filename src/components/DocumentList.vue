@@ -20,6 +20,7 @@ const selectedImages = ref<Set<string>>(new Set());
 const selectedFiles = ref<Set<string>>(new Set());
 const isSelectMode = ref(false);
 const isEditMode = ref(false);
+const spinning = ref(false);
 const folderPath = ref(route.params.folderPath as String || '/');
 const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL;
 
@@ -75,7 +76,6 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       return false;
     });
     const html = response.data;
-    console.log(auth, "auth file");
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
@@ -194,9 +194,11 @@ const beforeUpload = (file: any) => {
 
 // 处理批量上传功能
 const uploadNextFile = async () => {
+  spinning.value = true;
   if (fileQueue.value.length === 0) {
     isUploading.value = false;
     setTimeout(() => {
+      spinning.value = false;
       fetchHtmlAndExtractImages(); // 触发刷新事件
     }, 1000);
     return;
@@ -210,6 +212,7 @@ const uploadNextFile = async () => {
   formData.append('files', file);
 
   try {
+    
     const response = await fetch('/upload', {
       method: 'POST',
       body: formData
@@ -436,108 +439,112 @@ defineExpose({
 
 <template>
   <div>
-    <a-breadcrumb :style="{ backgroundColor: props.isDarkMode ? 'white' : 'inherit', marginBottom: '20px' }">
-      <a-breadcrumb-item>
-        <a @click.prevent="router.push('/')" href="#">
-          首页
-        </a>
-      </a-breadcrumb-item>
-      <a-breadcrumb-item v-for="(segment, index) in folderPath.split('/').filter(Boolean)" :key="index">
-        <template v-if="index === folderPath.split('/').filter(Boolean).length - 1">
-          {{ segment }}
-        </template>
-        <template v-else>
-          <a @click.prevent="router.push('/' + folderPath.split('/').filter(Boolean).slice(0, index + 1).join('/'))"
-            href="#">{{ segment }}</a>
-        </template>
-      </a-breadcrumb-item>
-    </a-breadcrumb>
-
-    <a-divider />
-
-    <div class="actions">
-      <a-button class="a_button_class" :icon="h(CheckCircleOutlined)" @click="toggleSelectMode">{{ isSelectMode ? '取消选择'
-        :
-        '批量选择' }}</a-button>
-      <a-button class="a_button_class" :icon="h(DeleteOutlined)"
-        v-if="selectedImages.size > 0 || selectedFiles.size > 0" danger @click="deleteSelectedImages">批量删除</a-button>
-      <a-button class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑'
-        }}</a-button>
-      <a-button class="a_button_class" :icon="h(DownloadOutlined)"
-        v-if="selectedImages.size > 0 || selectedFiles.size > 0" @click="downloadSelectedItems">下载选中的文件</a-button>
-
-      <a-upload style="margin-right: 0px;" :before-upload="beforeUpload" :custom-request="uploadNextFile" multiple
-        :show-upload-list="false" class="a_button_class">
-        <a-button :icon="h(UploadOutlined)" class="a_button_class">
-          上传文件
+    <a-spin :spinning="spinning" tip="上传中，请问刷新页面中断上传">
+      <a-breadcrumb :style="{ backgroundColor: props.isDarkMode ? 'white' : 'inherit', marginBottom: '20px' }">
+        <a-breadcrumb-item>
+          <a @click.prevent="router.push('/')" href="#">
+            首页
+          </a>
+        </a-breadcrumb-item>
+        <a-breadcrumb-item v-for="(segment, index) in folderPath.split('/').filter(Boolean)" :key="index">
+          <template v-if="index === folderPath.split('/').filter(Boolean).length - 1">
+            {{ segment }}
+          </template>
+          <template v-else>
+            <a @click.prevent="router.push('/' + folderPath.split('/').filter(Boolean).slice(0, index + 1).join('/'))"
+              href="#">{{ segment }}</a>
+          </template>
+        </a-breadcrumb-item>
+      </a-breadcrumb>
+  
+      <a-divider />
+  
+      <div class="actions">
+        <a-button class="a_button_class" :icon="h(CheckCircleOutlined)" @click="toggleSelectMode">{{ isSelectMode ? '取消选择'
+          :
+          '批量选择' }}</a-button>
+        <a-button class="a_button_class" :icon="h(DeleteOutlined)"
+          v-if="selectedImages.size > 0 || selectedFiles.size > 0" danger @click="deleteSelectedImages">批量删除</a-button>
+        <a-button class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑'
+          }}</a-button>
+        <a-button class="a_button_class" :icon="h(DownloadOutlined)"
+          v-if="selectedImages.size > 0 || selectedFiles.size > 0" @click="downloadSelectedItems">下载选中的文件</a-button>
+  
+        <a-upload style="margin-right: 0px;" :before-upload="beforeUpload" :custom-request="uploadNextFile" multiple
+          :show-upload-list="false" class="a_button_class">
+          <a-button :icon="h(UploadOutlined)" class="a_button_class">
+            上传文件
+          </a-button>
+        </a-upload>
+  
+        <a-button :icon="h(FolderAddOutlined)" class="a_button_class" @click="createFolder">
+          创建文件夹
         </a-button>
-      </a-upload>
-
-      <a-button :icon="h(FolderAddOutlined)" class="a_button_class" @click="createFolder">
-        创建文件夹
-      </a-button>
-
-      <a-select v-model:value="sortOption" style="width: 110px; margin-right: 0px;">
-        <a-select-option value="name-asc">名称降序</a-select-option>
-        <a-select-option value="name-desc">名称升序</a-select-option>
-        <a-select-option value="date-asc">日期降序</a-select-option>
-        <a-select-option value="date-desc">日期升序</a-select-option>
-      </a-select>
-    </div>
-
-    <div class="folders" v-if="folderLinks.length > 0">
-      <div v-for="folder in folderLinks" :key="folder.url" class="folder-container">
-        <a @click.prevent="navigateToFolder(folder.name)" href="#">
-          <FolderOutlined class="folder-icon" />
-          <span class="folder-name">{{ folder.name }}</span>
-        </a>
-        <div>
-          <a-button v-if="isEditMode" type="link" :icon="h(EditOutlined)" @click="editFolderName(folder.name)" />
-          <a-button v-if="isEditMode" type="link" danger :icon="h(DeleteOutlined)"
-            @click="confirmDeleteFolder(folder.name)" />
+  
+        <a-select v-model:value="sortOption" style="width: 110px; margin-right: 0px;">
+          <a-select-option value="name-asc">名称降序</a-select-option>
+          <a-select-option value="name-desc">名称升序</a-select-option>
+          <a-select-option value="date-asc">日期降序</a-select-option>
+          <a-select-option value="date-desc">日期升序</a-select-option>
+        </a-select>
+      </div>
+  
+      <div class="folders" v-if="folderLinks.length > 0">
+        <div v-for="folder in folderLinks" :key="folder.url" class="folder-container">
+          <a @click.prevent="navigateToFolder(folder.name)" href="#">
+            <FolderOutlined class="folder-icon" />
+            <span class="folder-name">{{ folder.name }}</span>
+          </a>
+          <div>
+            <a-button v-if="isEditMode" type="link" :icon="h(EditOutlined)" @click="editFolderName(folder.name)" />
+            <a-button v-if="isEditMode" type="link" danger :icon="h(DeleteOutlined)"
+              @click="confirmDeleteFolder(folder.name)" />
+          </div>
         </div>
       </div>
-    </div>
-    <div class="gallery">
-      <a-image-preview-group>
-        <div v-for="item in imageUrls" :key="item.url" class="image-wrapper"
-          @click="isSelectMode ? handleSelectImage(item.url, !selectedImages.has(item.url)) : null">
-          <div class="image-container">
-            <Checkbox v-if="isSelectMode" @change="(e) => handleSelectImage(item.url, e.target.checked)"
-              class="image-checkbox" :checked="selectedImages.has(item.url)" />
-            <!-- <a-image v-lazy="item.url" width="200px" :preview="!isSelectMode" /> -->
-            <!-- <img class="mini-cover" v-lazy="item.url" width="100%" height="400"> -->
-            <a-image :src="item.url" width="200px" :preview="!isSelectMode" />
-            <!-- <LazyLoadImage :src="item.url" :preview="!isSelectMode" /> -->
-            <!-- <LazyLoadImage :src="item.url" :preview="!isSelectMode" /> -->
-            <!-- <img v-lazy="item.url"  width="200px" > -->
-            <div class="image-name">{{ item.name }}</div>
-            <div v-if="isEditMode" class="delete-button">
-              <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
+      <div class="gallery">
+        <a-image-preview-group>
+          <div v-for="item in imageUrls" :key="item.url" class="image-wrapper"
+            @click="isSelectMode ? handleSelectImage(item.url, !selectedImages.has(item.url)) : null">
+            <div class="image-container">
+              <Checkbox v-if="isSelectMode" @change="(e) => handleSelectImage(item.url, e.target.checked)"
+                class="image-checkbox" :checked="selectedImages.has(item.url)" />
+              <!-- <a-image v-lazy="item.url" width="200px" :preview="!isSelectMode" /> -->
+              <!-- <img class="mini-cover" v-lazy="item.url" width="100%" height="400"> -->
+              <a-image :src="item.url" width="200px" :preview="!isSelectMode" />
+              <!-- <LazyLoadImage :src="item.url" :preview="!isSelectMode" /> -->
+              <!-- <LazyLoadImage :src="item.url" :preview="!isSelectMode" /> -->
+              <!-- <img v-lazy="item.url"  width="200px" > -->
+              <div class="image-name">{{ item.name }}</div>
+              <div v-if="isEditMode" class="delete-button">
+                <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
+              </div>
+            </div>
+          </div>
+        </a-image-preview-group>
+      </div>
+  
+      <div v-if="otherFiles.length > 0" style="text-align: left;margin-top: 30px;">其他文件</div>
+      <div class="other-files">
+        <div v-for="file in otherFiles" :key="file.url" class="file-wrapper"
+          @click="isSelectMode ? handleSelectFile(file.url, !selectedFiles.has(file.url)) : null">
+          <div class="file-container">
+            <Checkbox v-if="isSelectMode" @change="(e) => handleSelectFile(file.url, e.target.checked)"
+              class="file-checkbox" :checked="selectedFiles.has(file.url)" />
+            <div style="display: flex; align-items: center;margin-bottom: 10px;">
+              <FileOutlined class="file-icon" />
+              <div>{{ file.fileSize }}</div>
+            </div>
+           
+            <a type="link" style="color: blue" :href="file.url" target="_blank">下载</a>
+            <div class="file-name">{{ file.name }}</div>
+            <div v-if="isEditMode" class="delete-button" style="top: 0px">
+              <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
             </div>
           </div>
         </div>
-      </a-image-preview-group>
-    </div>
-
-    <div v-if="otherFiles.length > 0" style="text-align: left;margin-top: 30px;">其他文件</div>
-    <div class="other-files">
-      <div v-for="file in otherFiles" :key="file.url" class="file-wrapper"
-        @click="isSelectMode ? handleSelectFile(file.url, !selectedFiles.has(file.url)) : null">
-        <div class="file-container">
-          <Checkbox v-if="isSelectMode" @change="(e) => handleSelectFile(file.url, e.target.checked)"
-            class="file-checkbox" :checked="selectedFiles.has(file.url)" />
-          <div style="display: flex; align-items: center;margin-bottom: 10px;">
-            <FileOutlined class="file-icon" />
-            <div>{{ file.fileSize }}</div>
-          </div>
-          <div class="file-name">{{ file.name }}</div>
-          <div v-if="isEditMode" class="delete-button" style="top: 0px">
-            <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
-          </div>
-        </div>
       </div>
-    </div>
+  </a-spin>
   </div>
 </template>
 

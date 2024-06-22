@@ -172,17 +172,17 @@ export default function uploadPlugin() {
       server.middlewares.use(app);
 
       // 启动 http-server 服务
-      const httpServerCommand = 'http-server ./images -p 8089 --cors -c-1';
-      exec(httpServerCommand, { maxBuffer: maxBuffer }, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Error starting http-server: ${error}`);
-          return;
-        }
-        console.log(`http-server output: ${stdout}`);
-        if (stderr) {
-          console.error(`http-server error output: ${stderr}`);
-        }
-      });
+      // const httpServerCommand = 'http-server ./images -p 8089 --cors -c-1';
+      // exec(httpServerCommand, { maxBuffer: maxBuffer }, (error, stdout, stderr) => {
+      //   if (error) {
+      //     console.error(`Error starting http-server: ${error}`);
+      //     return;
+      //   }
+      //   console.log(`http-server output: ${stdout}`);
+      //   if (stderr) {
+      //     console.error(`http-server error output: ${stderr}`);
+      //   }
+      // });
     }
   };
 }
