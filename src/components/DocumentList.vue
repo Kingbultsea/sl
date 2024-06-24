@@ -6,9 +6,11 @@ import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, Uplo
 import { Checkbox, Modal, message } from 'ant-design-vue';
 // @ts-ignore
 import { saveAs } from 'file-saver';
+import { useSpinningStore } from '@/stores/spinningStore';
 
 const route = useRoute();
 const router = useRouter();
+const spinningStore = useSpinningStore();
 
 const props = defineProps<{ isDarkMode: boolean }>();
 
@@ -20,7 +22,6 @@ const selectedImages = ref<Set<string>>(new Set());
 const selectedFiles = ref<Set<string>>(new Set());
 const isSelectMode = ref(false);
 const isEditMode = ref(false);
-const spinning = ref(false);
 const folderPath = ref(route.params.folderPath as String || '/');
 const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL;
 
@@ -69,12 +70,12 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
   try {
     const curUrl = `${IMAGE_BASE_URL}${folderPath.value}`;
     const response = await axios.get(curUrl);
-    const auth = await axios.get(`${IMAGE_BASE_URL}/check-auth`).then((data) => {
-      console.log(data)
-      return true
-    }).catch(e => {
-      return false;
-    });
+    // const auth = await axios.get(`${IMAGE_BASE_URL}/check-auth`).then((data) => {
+    //   console.log(data)
+    //   return true
+    // }).catch(e => {
+    //   return false;
+    // });
     const html = response.data;
 
     const parser = new DOMParser();
@@ -92,8 +93,9 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       const fileSize = sizes[index].textContent?.trim() || '0'; // 获取文件大小
 
       // console.log(fileName!.startsWith('protected'));
+      //  (!fileName!.startsWith('protected')
 
-      if (fileName!.endsWith('/') && (!fileName!.startsWith('protected') || auth)) {
+      if (fileName!.endsWith('/')) {
         if (fileName !== '../') {
           fileName = fileName?.replace(/\/$/, ''); // 去除末尾的斜杠
           folderLinks.value.push({ url: curUrl + fileName, name: fileName!, lastModified, fileSize });
@@ -194,11 +196,11 @@ const beforeUpload = (file: any) => {
 
 // 处理批量上传功能
 const uploadNextFile = async () => {
-  spinning.value = true;
+  spinningStore.setSpinning(true, "正在上传中，请勿刷新或关闭页面");
   if (fileQueue.value.length === 0) {
     isUploading.value = false;
     setTimeout(() => {
-      spinning.value = false;
+      spinningStore.toggleSpinning();
       fetchHtmlAndExtractImages(); // 触发刷新事件
     }, 1000);
     return;
@@ -219,7 +221,7 @@ const uploadNextFile = async () => {
     });
 
     if (response.ok) {
-      message.success(`${file.name} uploaded successfully`);
+      message.success(`${decodeURIComponent(file.name)} uploaded successfully`);
       uploadNextFile(); // 递归上传下一个文件
       if (file.onSuccess) {
         file.onSuccess(response.body, file); // 通知上传成功
@@ -439,7 +441,6 @@ defineExpose({
 
 <template>
   <div>
-    <a-spin :spinning="spinning" tip="上传中，请问刷新页面中断上传">
       <a-breadcrumb :style="{ backgroundColor: props.isDarkMode ? 'white' : 'inherit', marginBottom: '20px' }">
         <a-breadcrumb-item>
           <a @click.prevent="router.push('/')" href="#">
@@ -536,7 +537,7 @@ defineExpose({
               <div>{{ file.fileSize }}</div>
             </div>
            
-            <a type="link" style="color: blue" :href="file.url" target="_blank">下载</a>
+            <a type="link" style="color: #1677ff" :href="file.url" target="_blank">下载</a>
             <div class="file-name">{{ file.name }}</div>
             <div v-if="isEditMode" class="delete-button" style="top: 0px">
               <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
@@ -544,7 +545,6 @@ defineExpose({
           </div>
         </div>
       </div>
-  </a-spin>
   </div>
 </template>
 
