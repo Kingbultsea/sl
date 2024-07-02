@@ -15,9 +15,9 @@ const spinningStore = useSpinningStore();
 const props = defineProps<{ isDarkMode: boolean }>();
 
 
-const imageUrls = ref<{ url: string, name: string, lastModified: Date, fileSize: string }[]>([]);
-const folderLinks = ref<{ url: string, name: string, lastModified: Date, fileSize: string }[]>([]);
-const otherFiles = ref<{ url: string, name: string, lastModified: Date, fileSize: string }[]>([]);
+const imageUrls = ref<{ url: string, name: string, lastModified: Date, fileSize: string, lastModifiedText?: string  }[]>([]);
+const folderLinks = ref<{ url: string, name: string, lastModified: Date, fileSize: string, lastModifiedText?: string  }[]>([]);
+const otherFiles = ref<{ url: string, name: string, lastModified: Date, fileSize: string, lastModifiedText?: string }[]>([]);
 const selectedImages = ref<Set<string>>(new Set());
 const selectedFiles = ref<Set<string>>(new Set());
 const isSelectMode = ref(false);
@@ -98,14 +98,14 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       if (fileName!.endsWith('/')) {
         if (fileName !== '../') {
           fileName = fileName?.replace(/\/$/, ''); // 去除末尾的斜杠
-          folderLinks.value.push({ url: curUrl + fileName, name: fileName!, lastModified, fileSize });
+          folderLinks.value.push({ url: curUrl + fileName, name: fileName!, lastModified, fileSize, lastModifiedText });
         }
       } else {
         const extension = fileName!.split('.').pop()?.toLowerCase();
         if (validImageExtensions.includes(`.${extension}`)) {
           currentLinks.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize });
         } else {
-          otherFiles.value.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize });
+          otherFiles.value.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize, lastModifiedText });
         }
       }
     });
@@ -534,6 +534,7 @@ defineExpose({
               class="file-checkbox" :checked="selectedFiles.has(file.url)" />
             <div style="display: flex; align-items: center;margin-bottom: 10px;">
               <FileOutlined class="file-icon" />
+              <div>{{ file.lastModifiedText }}</div>
               <div>{{ file.fileSize }}</div>
             </div>
            
