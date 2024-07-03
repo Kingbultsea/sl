@@ -40,6 +40,30 @@ const monthMap: any = {
   '12月': 'Dec'
 };
 
+const parseDateFormat2 = (date: Date) => {
+
+  
+  // 定义选项以进行日期和时间格式化
+  const options = {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false // 使用24小时制
+  };
+  
+  // 使用 Intl.DateTimeFormat 进行格式化
+  // @ts-ignore
+  const formatter = new Intl.DateTimeFormat('zh-CN', options);
+  const formattedDate = formatter.format(date);
+  
+  // 输出结果
+  return formattedDate;
+
+}
+
 const parseDate = (dateString: string) => {
   // 提取日、月、年和时间部分
   const [datePart, timePart] = dateString.split(' ');
@@ -103,7 +127,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       } else {
         const extension = fileName!.split('.').pop()?.toLowerCase();
         if (validImageExtensions.includes(`.${extension}`)) {
-          currentLinks.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize });
+          currentLinks.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize, lastModifiedText });
         } else {
           otherFiles.value.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize, lastModifiedText });
         }
@@ -517,6 +541,7 @@ defineExpose({
               <!-- <LazyLoadImage :src="item.url" :preview="!isSelectMode" /> -->
               <!-- <img v-lazy="item.url"  width="200px" > -->
               <div class="image-name">{{ item.name }}</div>
+              <div class="image-name">{{ parseDateFormat2(item.lastModified) }}</div>
               <div v-if="isEditMode" class="delete-button">
                 <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
               </div>
@@ -534,12 +559,12 @@ defineExpose({
               class="file-checkbox" :checked="selectedFiles.has(file.url)" />
             <div style="display: flex; align-items: center;margin-bottom: 10px;">
               <FileOutlined class="file-icon" />
-              <div>{{ file.lastModifiedText }}</div>
               <div>{{ file.fileSize }}</div>
             </div>
            
             <a type="link" style="color: #1677ff" :href="file.url" target="_blank">下载</a>
             <div class="file-name">{{ file.name }}</div>
+            <div class="file-name">{{ parseDateFormat2(file.lastModified) }}</div>
             <div v-if="isEditMode" class="delete-button" style="top: 0px">
               <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
             </div>
