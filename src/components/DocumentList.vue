@@ -42,6 +42,7 @@ const monthMap: any = {
 
 const parseDateFormat2 = (date: Date) => {
 
+
   
   // 定义选项以进行日期和时间格式化
   const options = {
@@ -57,6 +58,9 @@ const parseDateFormat2 = (date: Date) => {
   // 使用 Intl.DateTimeFormat 进行格式化
   // @ts-ignore
   const formatter = new Intl.DateTimeFormat('zh-CN', options);
+
+  console.log(date);
+
   const formattedDate = formatter.format(date);
   
   // 输出结果
@@ -114,6 +118,9 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       let fileName = link.textContent?.trim();
       const lastModifiedText = dates[index].textContent?.trim();
       const lastModified = parseDate(lastModifiedText!);
+
+      console.log(lastModified, "查看上次更改大小", lastModifiedText);
+
       const fileSize = sizes[index].textContent?.trim() || '0'; // 获取文件大小
 
       // console.log(fileName!.startsWith('protected'));
@@ -541,7 +548,7 @@ defineExpose({
               <!-- <LazyLoadImage :src="item.url" :preview="!isSelectMode" /> -->
               <!-- <img v-lazy="item.url"  width="200px" > -->
               <div class="image-name">{{ item.name }}</div>
-              <!-- <div class="image-name">{{ parseDateFormat2(item.lastModified) }}</div> -->
+              <div class="image-name">{{ item.lastModifiedText }}</div>
               <div v-if="isEditMode" class="delete-button">
                 <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
               </div>
@@ -564,7 +571,7 @@ defineExpose({
            
             <a type="link" style="color: #1677ff" :href="file.url" target="_blank">下载</a>
             <div class="file-name">{{ file.name }}</div>
-            <!-- <div class="file-name">{{ parseDateFormat2(file.lastModified) }}</div> -->
+            <div class="file-name">{{ file.lastModifiedText }}</div>
             <div v-if="isEditMode" class="delete-button" style="top: 0px">
               <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
             </div>
