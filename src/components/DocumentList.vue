@@ -72,7 +72,7 @@ const parseDate = (dateString: string) => {
   // 提取日、月、年和时间部分
   const [datePart, timePart] = dateString.split(' ');
   const [day, month, year] = datePart.split('-');
-  const monthEnglish = monthMap[month];
+  const monthEnglish = month;
 
   // 构建有效的日期字符串
   const formattedDateString = `${day} ${monthEnglish} ${year} ${timePart}`;
