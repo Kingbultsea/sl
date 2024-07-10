@@ -541,7 +541,7 @@ defineExpose({
               <!-- <LazyLoadImage :src="item.url" :preview="!isSelectMode" /> -->
               <!-- <img v-lazy="item.url"  width="200px" > -->
               <div class="image-name">{{ item.name }}</div>
-              <div class="image-name">{{ parseDateFormat2(item.lastModified) }}</div>
+              <!-- <div class="image-name">{{ parseDateFormat2(item.lastModified) }}</div> -->
               <div v-if="isEditMode" class="delete-button">
                 <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
               </div>
@@ -564,7 +564,7 @@ defineExpose({
            
             <a type="link" style="color: #1677ff" :href="file.url" target="_blank">下载</a>
             <div class="file-name">{{ file.name }}</div>
-            <div class="file-name">{{ parseDateFormat2(file.lastModified) }}</div>
+            <!-- <div class="file-name">{{ parseDateFormat2(file.lastModified) }}</div> -->
             <div v-if="isEditMode" class="delete-button" style="top: 0px">
               <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
             </div>
