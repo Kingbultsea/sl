@@ -576,7 +576,7 @@ defineExpose({
     </div>
 
     <div class="search-bar">
-      <a-input-search v-model:value="searchValue" placeholder="输入搜索文件目录或名称（全局搜索）" style="width: 500px"
+      <a-input-search v-model:value="searchValue" placeholder="（仅支持全局搜索）输入搜索文件目录或名称" style="width: 500px"
         @search="onSearch" />
     </div>
 
