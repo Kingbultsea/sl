@@ -14,6 +14,7 @@ declare module 'vue' {
     ADivider: typeof import('ant-design-vue/es')['Divider']
     AImage: typeof import('ant-design-vue/es')['Image']
     AImagePreviewGroup: typeof import('ant-design-vue/es')['ImagePreviewGroup']
+    AInputSearch: typeof import('ant-design-vue/es')['InputSearch']
     ASelect: typeof import('ant-design-vue/es')['Select']
     ASelectOption: typeof import('ant-design-vue/es')['SelectOption']
     ASpin: typeof import('ant-design-vue/es')['Spin']

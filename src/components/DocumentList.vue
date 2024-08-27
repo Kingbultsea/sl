@@ -2,11 +2,14 @@
 import { ref, watch, h } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
-import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, FileOutlined, DownloadOutlined } from '@ant-design/icons-vue';
+import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, FileOutlined, DownloadOutlined, PushpinOutlined } from '@ant-design/icons-vue';
 import { Checkbox, Modal, message } from 'ant-design-vue';
 // @ts-ignore
 import { saveAs } from 'file-saver';
-import { useSpinningStore } from '@/stores/spinningStore';
+import { useSpinningStore } from '../stores/spinningStore';
+import './DocumentList.css'; // 引入外部 CSS 文件
+
+const validImageExtensions = ['.jpeg', '.jpg', '.png', '.gif', '.webp'];
 
 const route = useRoute();
 const router = useRouter();
@@ -15,14 +18,46 @@ const spinningStore = useSpinningStore();
 const props = defineProps<{ isDarkMode: boolean }>();
 
 
-const imageUrls = ref<{ url: string, name: string, lastModified: Date, fileSize: string, lastModifiedText?: string  }[]>([]);
-const folderLinks = ref<{ url: string, name: string, lastModified: Date, fileSize: string, lastModifiedText?: string  }[]>([]);
+const imageUrls = ref<{ url: string, name: string, lastModified: Date, fileSize: string, lastModifiedText?: string }[]>([]);
+const folderLinks = ref<{ url: string, name: string, lastModified: Date, fileSize: string, lastModifiedText?: string }[]>([]);
 const otherFiles = ref<{ url: string, name: string, lastModified: Date, fileSize: string, lastModifiedText?: string }[]>([]);
+
 const selectedImages = ref<Set<string>>(new Set());
 const selectedFiles = ref<Set<string>>(new Set());
 const isSelectMode = ref(false);
 const isEditMode = ref(false);
 const folderPath = ref(route.params.folderPath as String || '/');
+const searchValue = ref<string>('');
+const onSearch = (_searchValue: string) => {
+
+  if (_searchValue.length === 0) {
+    fetchHtmlAndExtractImages();
+    return;
+  }
+  spinningStore.setSpinning(true, "正在搜索");
+
+  // 发送 POST 请求到后端
+  axios.post("/search-files", {
+    query: _searchValue, // 传递搜索值给后端
+  }).then(({ data }) => {
+
+    // Files found: [
+    //   '_0003_walk_22 (4).png',
+    //   'protected/_0003_walk_22 (3).png',
+    //   '1222/123/_0003_walk_22 (2).png',
+    //   '1222/123/_0003_walk_22 (3).png'
+    // ]
+
+    // @ts-ignore
+    imageUrls.value = data.image;
+    folderLinks.value = data.fold;
+    otherFiles.value = data.other;
+  }).catch(() => {
+    message.error('没有找到相关文件或文件夹');
+  }).finally(() => {
+    spinningStore.toggleSpinning();
+  });
+};
 const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL;
 
 const monthMap: any = {
@@ -42,27 +77,24 @@ const monthMap: any = {
 
 const parseDateFormat2 = (date: Date) => {
 
-
-  
   // 定义选项以进行日期和时间格式化
   const options = {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-      hour12: false // 使用24小时制
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    hour12: false // 使用24小时制
   };
-  
+
   // 使用 Intl.DateTimeFormat 进行格式化
   // @ts-ignore
   const formatter = new Intl.DateTimeFormat('zh-CN', options);
 
-  console.log(date);
 
   const formattedDate = formatter.format(date);
-  
+
   // 输出结果
   return formattedDate;
 
@@ -112,14 +144,10 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     const dates = doc.querySelectorAll('.last-modified');
     const sizes = doc.querySelectorAll('.file-size code'); // 获取文件大小的元素
 
-    const validImageExtensions = ['.jpeg', '.jpg', '.png', '.gif', '.webp'];
-
     links.forEach((link, index) => {
       let fileName = link.textContent?.trim();
       const lastModifiedText = dates[index].textContent?.trim();
       const lastModified = parseDate(lastModifiedText!);
-
-      console.log(lastModified, "查看上次更改大小", lastModifiedText);
 
       const fileSize = sizes[index].textContent?.trim() || '0'; // 获取文件大小
 
@@ -154,8 +182,8 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       return fn;
     };
     let index = 0;
-    intervalId = setInterval(fn(), 500);
-    
+    intervalId = setInterval(fn(), 50);
+
     sortItems(); // 加载数据后进行排序
   } catch (error) {
     console.error('Error fetching HTML:', error);
@@ -245,7 +273,7 @@ const uploadNextFile = async () => {
   formData.append('files', file);
 
   try {
-    
+
     const response = await fetch('/upload', {
       method: 'POST',
       body: formData
@@ -269,6 +297,19 @@ const uploadNextFile = async () => {
     uploadNextFile(); // 继续尝试上传下一个文件，即使当前文件上传失败
   }
 };
+
+// 高亮文件夹
+const HighLightDocs = (folderPath: string) => {
+
+  // 发送给服务器
+  axios.post('/highlight-folder', { folderPath })
+    .then(() => {
+      message.success('高亮文件成功');
+    })
+    .catch(error => {
+      message.error('高亮文件失败');
+    });
+}
 
 // 创建文件夹
 const createFolder = () => {
@@ -453,6 +494,18 @@ const sortItems = () => {
   }
 };
 
+// 获取缩略图URL的方法
+const getThumbnailUrl = (url: string): string => {
+  // 解析URL
+  const urlObject = new URL(url);
+
+  // 添加或设置查询参数 thumbnail=true
+  urlObject.searchParams.set('thumbnail', 'true');
+
+  // 返回带有 thumbnail 参数的 URL
+  return urlObject.toString();
+};
+
 // 当下拉选择的值变化，需要重新排序
 watch(sortOption, sortItems, { flush: 'post', immediate: false });
 
@@ -471,277 +524,118 @@ defineExpose({
 </script>
 
 <template>
-  <div>
-      <a-breadcrumb :style="{ backgroundColor: props.isDarkMode ? 'white' : 'inherit', marginBottom: '20px' }">
-        <a-breadcrumb-item>
-          <a @click.prevent="router.push('/')" href="#">
-            首页
-          </a>
-        </a-breadcrumb-item>
-        <a-breadcrumb-item v-for="(segment, index) in folderPath.split('/').filter(Boolean)" :key="index">
-          <template v-if="index === folderPath.split('/').filter(Boolean).length - 1">
-            {{ segment }}
-          </template>
-          <template v-else>
-            <a @click.prevent="router.push('/' + folderPath.split('/').filter(Boolean).slice(0, index + 1).join('/'))"
-              href="#">{{ segment }}</a>
-          </template>
-        </a-breadcrumb-item>
-      </a-breadcrumb>
-  
-      <a-divider />
-  
-      <div class="actions">
-        <a-button class="a_button_class" :icon="h(CheckCircleOutlined)" @click="toggleSelectMode">{{ isSelectMode ? '取消选择'
-          :
-          '批量选择' }}</a-button>
-        <a-button class="a_button_class" :icon="h(DeleteOutlined)"
-          v-if="selectedImages.size > 0 || selectedFiles.size > 0" danger @click="deleteSelectedImages">批量删除</a-button>
-        <a-button class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑'
-          }}</a-button>
-        <a-button class="a_button_class" :icon="h(DownloadOutlined)"
-          v-if="selectedImages.size > 0 || selectedFiles.size > 0" @click="downloadSelectedItems">下载选中的文件</a-button>
-  
-        <a-upload style="margin-right: 0px;" :before-upload="beforeUpload" :custom-request="uploadNextFile" multiple
-          :show-upload-list="false" class="a_button_class">
-          <a-button :icon="h(UploadOutlined)" class="a_button_class">
-            上传文件
-          </a-button>
-        </a-upload>
-  
-        <a-button :icon="h(FolderAddOutlined)" class="a_button_class" @click="createFolder">
-          创建文件夹
+  <div class="document-list">
+    <a-breadcrumb :style="{ backgroundColor: props.isDarkMode ? 'white' : 'inherit', marginBottom: '20px' }">
+      <a-breadcrumb-item>
+        <a @click.prevent="router.push('/')" href="#">
+          首页
+        </a>
+      </a-breadcrumb-item>
+      <a-breadcrumb-item v-for="(segment, index) in folderPath.split('/').filter(Boolean)" :key="index">
+        <template v-if="index === folderPath.split('/').filter(Boolean).length - 1">
+          {{ segment }}
+        </template>
+        <template v-else>
+          <a @click.prevent="router.push('/' + folderPath.split('/').filter(Boolean).slice(0, index + 1).join('/'))"
+            href="#">{{ segment }}</a>
+        </template>
+      </a-breadcrumb-item>
+    </a-breadcrumb>
+
+    <a-divider />
+
+    <div class="actions">
+      <a-button class="a_button_class" :icon="h(CheckCircleOutlined)" @click="toggleSelectMode">{{ isSelectMode ? '取消选择'
+        :
+        '批量选择' }}</a-button>
+      <a-button class="a_button_class" :icon="h(DeleteOutlined)"
+        v-if="selectedImages.size > 0 || selectedFiles.size > 0" danger @click="deleteSelectedImages">批量删除</a-button>
+      <a-button class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑'
+        }}</a-button>
+      <a-button class="a_button_class" :icon="h(DownloadOutlined)"
+        v-if="selectedImages.size > 0 || selectedFiles.size > 0" @click="downloadSelectedItems">下载选中的文件</a-button>
+
+      <a-upload style="margin-right: 0px;" :before-upload="beforeUpload" :custom-request="uploadNextFile" multiple
+        :show-upload-list="false" class="a_button_class">
+        <a-button :icon="h(UploadOutlined)" class="a_button_class">
+          上传文件
         </a-button>
-  
-        <a-select v-model:value="sortOption" style="width: 110px; margin-right: 0px;">
-          <a-select-option value="name-asc">名称降序</a-select-option>
-          <a-select-option value="name-desc">名称升序</a-select-option>
-          <a-select-option value="date-asc">日期降序</a-select-option>
-          <a-select-option value="date-desc">日期升序</a-select-option>
-        </a-select>
-      </div>
-  
-      <div class="folders" v-if="folderLinks.length > 0">
-        <div v-for="folder in folderLinks" :key="folder.url" class="folder-container">
-          <a @click.prevent="navigateToFolder(folder.name)" href="#">
-            <FolderOutlined class="folder-icon" />
-            <span class="folder-name">{{ folder.name }}</span>
-          </a>
-          <div>
-            <a-button v-if="isEditMode" type="link" :icon="h(EditOutlined)" @click="editFolderName(folder.name)" />
-            <a-button v-if="isEditMode" type="link" danger :icon="h(DeleteOutlined)"
-              @click="confirmDeleteFolder(folder.name)" />
-          </div>
+      </a-upload>
+
+      <a-button :icon="h(FolderAddOutlined)" class="a_button_class" @click="createFolder">
+        创建文件夹
+      </a-button>
+
+      <a-select v-model:value="sortOption" style="width: 110px; margin-right: 0px;">
+        <a-select-option value="name-asc">名称降序</a-select-option>
+        <a-select-option value="name-desc">名称升序</a-select-option>
+        <a-select-option value="date-asc">日期降序</a-select-option>
+        <a-select-option value="date-desc">日期升序</a-select-option>
+      </a-select>
+    </div>
+
+    <div class="search-bar">
+      <a-input-search v-model:value="searchValue" placeholder="输入搜索文件目录或名称" style="width: 500px" @search="onSearch" />
+    </div>
+
+    <!-- 文件夹 -->
+    <div class="folders" v-if="folderLinks.length > 0">
+      <div v-for="folder in folderLinks" :key="folder.url" class="folder-container">
+        <a @click.prevent="navigateToFolder(folder.name)" href="#">
+          <FolderOutlined class="folder-icon" />
+          <span class="folder-name">{{ folder.name }}</span>
+        </a>
+        <div>
+          <a-button v-if="isEditMode" type="link" style="color: #30fb00" :icon="h(PushpinOutlined)"
+            @click="HighLightDocs(folder.url)" />
+          <a-button v-if="isEditMode" type="link" :icon="h(EditOutlined)" @click="editFolderName(folder.name)" />
+          <a-button v-if="isEditMode" type="link" danger :icon="h(DeleteOutlined)"
+            @click="confirmDeleteFolder(folder.name)" />
         </div>
       </div>
-      <div class="gallery">
-        <a-image-preview-group>
-          <div v-for="item in imageUrls" :key="item.url" class="image-wrapper"
-            @click="isSelectMode ? handleSelectImage(item.url, !selectedImages.has(item.url)) : null">
-            <div class="image-container">
-              <Checkbox v-if="isSelectMode" @change="(e) => handleSelectImage(item.url, e.target.checked)"
-                class="image-checkbox" :checked="selectedImages.has(item.url)" />
-              <!-- <a-image v-lazy="item.url" width="200px" :preview="!isSelectMode" /> -->
-              <!-- <img class="mini-cover" v-lazy="item.url" width="100%" height="400"> -->
-              <a-image :src="item.url" width="200px" :preview="!isSelectMode" />
-              <!-- <LazyLoadImage :src="item.url" :preview="!isSelectMode" /> -->
-              <!-- <LazyLoadImage :src="item.url" :preview="!isSelectMode" /> -->
-              <!-- <img v-lazy="item.url"  width="200px" > -->
-              <div class="image-name">{{ item.name }}</div>
-              <div class="image-name">{{ item.lastModifiedText }}</div>
-              <div v-if="isEditMode" class="delete-button">
-                <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
-              </div>
-            </div>
-          </div>
-        </a-image-preview-group>
-      </div>
-  
-      <div v-if="otherFiles.length > 0" style="text-align: left;margin-top: 30px;">其他文件</div>
-      <div class="other-files">
-        <div v-for="file in otherFiles" :key="file.url" class="file-wrapper"
-          @click="isSelectMode ? handleSelectFile(file.url, !selectedFiles.has(file.url)) : null">
-          <div class="file-container">
-            <Checkbox v-if="isSelectMode" @change="(e) => handleSelectFile(file.url, e.target.checked)"
-              class="file-checkbox" :checked="selectedFiles.has(file.url)" />
-            <div style="display: flex; align-items: center;margin-bottom: 10px;">
-              <FileOutlined class="file-icon" />
-              <div>{{ file.fileSize }}</div>
-            </div>
-           
-            <a type="link" style="color: #1677ff" :href="file.url" target="_blank">下载</a>
-            <div class="file-name">{{ file.name }}</div>
-            <div class="file-name">{{ file.lastModifiedText }}</div>
-            <div v-if="isEditMode" class="delete-button" style="top: 0px">
-              <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
+    </div>
+
+    <div class="gallery">
+      <a-image-preview-group>
+        <div v-for="item in imageUrls" :key="item.url" class="image-wrapper"
+          @click="isSelectMode ? handleSelectImage(item.url, !selectedImages.has(item.url)) : null">
+          <div class="image-container">
+            <Checkbox v-if="isSelectMode" @change="(e) => handleSelectImage(item.url, e.target.checked)"
+              class="image-checkbox" :checked="selectedImages.has(item.url)" />
+
+            <!-- 如果是选择模式，则显示缩略图，否则显示大图 -->
+            <a-image :src="getThumbnailUrl(item.url)" width="200px" :preview="{ src: item.url }" />
+
+            <div class="image-name">{{ item.name }}</div>
+            <div class="image-name">{{ item.lastModifiedText }}</div>
+            <div v-if="isEditMode" class="delete-button">
+              <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
             </div>
           </div>
         </div>
+      </a-image-preview-group>
+    </div>
+
+    <div v-if="otherFiles.length > 0" style="text-align: left;margin-top: 30px;">其他文件</div>
+    <div class="other-files">
+      <div v-for="file in otherFiles" :key="file.url" class="file-wrapper"
+        @click="isSelectMode ? handleSelectFile(file.url, !selectedFiles.has(file.url)) : null">
+        <div class="file-container">
+          <Checkbox v-if="isSelectMode" @change="(e) => handleSelectFile(file.url, e.target.checked)"
+            class="file-checkbox" :checked="selectedFiles.has(file.url)" />
+          <div style="display: flex; align-items: center;margin-bottom: 10px;">
+            <FileOutlined class="file-icon" />
+            <div>{{ file.fileSize }}</div>
+          </div>
+
+          <a type="link" style="color: #1677ff" :href="file.url" target="_blank">下载</a>
+          <div class="file-name">{{ file.name }}</div>
+          <div class="file-name">{{ file.lastModifiedText }}</div>
+          <div v-if="isEditMode" class="delete-button" style="top: 0px">
+            <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
+          </div>
+        </div>
       </div>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.folders,
-.gallery,
-.other-files {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.a_button_class {
-  color: inherit !important;
-  background: inherit;
-  margin-right: 10px;
-}
-
-.delete-button {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 2;
-}
-
-.folders {
-  margin-bottom: 20px;
-}
-
-.folder-container {
-  display: flex;
-  align-items: center;
-  width: 240px;
-  box-sizing: border-box;
-  justify-content: space-between;
-  padding: 1em;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  text-decoration: none;
-}
-
-.folder-container:hover {
-  transform: scale(1.05);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-.folder-icon {
-  font-size: 2em;
-  margin-right: 10px;
-  color: #ffb74d;
-}
-
-.folder-name {
-  font-size: 1em;
-  word-wrap: break-word;
-  /* 支持单词换行 */
-  word-break: break-all;
-  /* 支持任意字符换行 */
-  white-space: normal;
-  /* 允许文本换行 */
-  display: block;
-  /* 确保块级显示 */
-  text-align: left;
-  /* 文本左对齐 */
-  width: 100%;
-  /* 占满容器宽度 */
-}
-
-.image-wrapper {
-  position: relative;
-}
-
-.image-container {
-  position: relative;
-  width: 200px;
-  overflow: hidden;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  cursor: pointer;
-  /* Add cursor to indicate clickability */
-}
-
-.image-container:hover {
-  transform: scale(1.05);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-.image-checkbox {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 1;
-}
-
-.file-wrapper {
-  position: relative;
-}
-
-.file-container {
-  position: relative;
-  width: 200px;
-  height: max-content;
-  overflow: hidden;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  cursor: pointer;
-  /* Add cursor to indicate clickability */
-  display: flex;
-  padding-top: 10px;
-  flex-direction: column;
-  /* align-items: center; */
-}
-
-.file-container:hover {
-  transform: scale(1.05);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-.file-checkbox {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 1;
-}
-
-.file-icon {
-  font-size: 2em;
-  margin-right: 10px;
-  margin-left: 10px;
-  color: #1890ff;
-}
-
-img {
-  width: 100%;
-  height: auto;
-  object-fit: cover;
-}
-
-.image-name,
-.file-name {
-  /* position: absolute; */
-  bottom: 0;
-  width: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
-  text-align: center;
-  padding: 5px 0;
-  opacity: 1;
-  transition: opacity 0.3s ease;
-}
-
-.image-wrapper:hover .image-name,
-.file-wrapper:hover .file-name {
-  opacity: 1;
-}
-
-.actions {
-  display: flex;
-  margin-bottom: 20px;
-}
-</style>

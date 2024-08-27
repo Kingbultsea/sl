@@ -1,0 +1,170 @@
+.document-list {
+
+  .folders,
+  .gallery,
+  .other-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .a_button_class {
+    color: inherit !important;
+    background: inherit;
+    margin-right: 10px;
+  }
+
+  .delete-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+  }
+
+  .folders {
+    margin-bottom: 20px;
+  }
+
+  .folder-container {
+    display: flex;
+    align-items: center;
+    width: 240px;
+    box-sizing: border-box;
+    justify-content: space-between;
+    padding: 1em;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    text-decoration: none;
+  }
+
+  .folder-container:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .folder-icon {
+    font-size: 2em;
+    margin-right: 10px;
+    color: #ffb74d;
+  }
+
+  .folder-name {
+    font-size: 1em;
+    word-wrap: break-word;
+    /* 支持单词换行 */
+    word-break: break-all;
+    /* 支持任意字符换行 */
+    white-space: normal;
+    /* 允许文本换行 */
+    display: block;
+    /* 确保块级显示 */
+    text-align: left;
+    /* 文本左对齐 */
+    width: 100%;
+    /* 占满容器宽度 */
+  }
+
+  .image-wrapper {
+    position: relative;
+  }
+
+  .image-container {
+    position: relative;
+    width: 200px;
+    overflow: hidden;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+    /* Add cursor to indicate clickability */
+  }
+
+  .image-container:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .image-checkbox {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1;
+  }
+
+  .file-wrapper {
+    position: relative;
+  }
+
+  .file-container {
+    position: relative;
+    width: 200px;
+    height: max-content;
+    overflow: hidden;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+    /* Add cursor to indicate clickability */
+    display: flex;
+    padding-top: 10px;
+    flex-direction: column;
+    /* align-items: center; */
+  }
+
+  .file-container:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .file-checkbox {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1;
+  }
+
+  .file-icon {
+    font-size: 2em;
+    margin-right: 10px;
+    margin-left: 10px;
+    color: #1890ff;
+  }
+
+  img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+  }
+
+  .image-name,
+  .file-name {
+    /* position: absolute; */
+    bottom: 0;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    text-align: center;
+    padding: 5px 0;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+  }
+
+  .image-wrapper:hover .image-name,
+  .file-wrapper:hover .file-name {
+    opacity: 1;
+  }
+
+  .actions {
+    display: flex;
+    margin-bottom: 20px;
+  }
+
+  .search-bar {
+    display: flex;
+    margin-bottom: 20px;
+  }
+}

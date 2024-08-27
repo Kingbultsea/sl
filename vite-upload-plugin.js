@@ -2,11 +2,28 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import { exec } from 'child_process';
+import fg from 'fast-glob';
 import fs from 'fs';
-// import "./http-server";
+import "./http-server";
 
 const __dirname = path.resolve(); // 计算 __dirname
+const directory = path.join(__dirname, './images');
 const maxBuffer = 1024 * 1024 * 300; // 设置缓冲区大小为 300MB
+
+// 定义图片类型的扩展名
+const imageExtensions = ['.jpeg', '.jpg', '.png', '.gif', '.webp'];
+
+// 日期格式化函数
+function formatDate(date) {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+
+  return `${day}-${month}-${year} ${hours}:${minutes}`;
+}
 
 // 确保目录存在
 const ensureDir = (dir) => {
@@ -118,6 +135,15 @@ export default function uploadPlugin() {
         }
       });
 
+      // 高亮处理
+      app.post('/highlight-folder', (req, res) => {
+        const folderPath = req.body.folderPath;
+
+        if (!folderPath) {
+
+        }
+      });
+
       // 删除文件夹处理
       app.post('/delete-folder', (req, res) => {
         const folderPath = req.body.folderPath;
@@ -169,20 +195,89 @@ export default function uploadPlugin() {
           });
       });
 
+      // 文件搜索处理
+      app.post('/search-files', async (req, res) => {
+        const searchQuery = req.body.query;
+        if (!searchQuery) {
+          return res.status(400).send('Search query is required');
+        }
+
+        console.log('Search Query:', searchQuery);
+        console.log('Search Directory:', directory);
+
+        try {
+          // 使用 fast-glob 搜索匹配的文件和文件夹
+          const pattern = `**/*${searchQuery}*`; // 匹配模式
+          const options = {
+            cwd: directory, // 设置搜索的工作目录
+            onlyFiles: false, // 搜索文件和文件夹
+            absolute: true, // 返回绝对路径
+          };
+
+          // 使用 async/await 异步搜索
+          const files = await fg(pattern, options);
+
+          if (files.length === 0) {
+            return res.status(404).send('No files or folders found');
+          }
+
+          console.log('Files found:', files);
+
+          // 定义结果对象
+          const results = {
+            image: [],
+            fold: [],
+            other: []
+          };
+
+          // 获取文件详细信息，并按类型分类
+          files.forEach(file => {
+            const relativePath = path.relative(directory, file);
+            const stats = fs.statSync(file); // 获取文件或文件夹的统计信息
+            const ext = path.extname(file).toLowerCase(); // 获取文件扩展名
+
+            const fileInfo = {
+              url: process.env.VITE_IMAGE_BASE_URL + "/" + relativePath, // 相对路径
+              name: path.basename(file), // 文件或文件夹的名称
+              lastModifiedText: formatDate(stats.mtime), // 上次修改时间
+              fileSize: stats.isDirectory() ? '' : `${stats.size} bytes`, // 文件大小（如果是文件夹则为空）
+            };
+
+            if (stats.isDirectory()) {
+              results.fold.push(fileInfo); // 添加到文件夹数组
+            } else if (imageExtensions.includes(ext)) {
+              results.image.push(fileInfo); // 添加到图片数组
+            } else {
+              results.other.push(fileInfo); // 添加到其他文件数组
+            }
+          });
+
+          // 24-Jun-2024 09:32
+          // 2024-06-24T01:32:55.930Z
+
+          console.log(results);
+
+          res.json(results);
+        } catch (error) {
+          console.error('Error searching files:', error);
+          res.status(500).send('Error searching files');
+        }
+      });
+
       server.middlewares.use(app);
 
       // 启动 http-server 服务
-      const httpServerCommand = 'http-server ./images -p 8089 --cors -c-1';
-      exec(httpServerCommand, { maxBuffer: maxBuffer }, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Error starting http-server: ${error}`);
-          return;
-        }
-        console.log(`http-server output: ${stdout}`);
-        if (stderr) {
-          console.error(`http-server error output: ${stderr}`);
-        }
-      });
+      // const httpServerCommand = 'http-server ./images -p 8089 --cors -c-1';
+      // exec(httpServerCommand, { maxBuffer: maxBuffer }, (error, stdout, stderr) => {
+      //   if (error) {
+      //     console.error(`Error starting http-server: ${error}`);
+      //     return;
+      //   }
+      //   console.log(`http-server output: ${stdout}`);
+      //   if (stderr) {
+      //     console.error(`http-server error output: ${stderr}`);
+      //   }
+      // });
     }
   };
 }
