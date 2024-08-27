@@ -524,7 +524,6 @@ defineExpose({
 
 // 首页
 const HomeClick = () => {
-  console.log("HomeClick");
   if (searchValue.value.length >= 0) {
     searchValue.value = "";
     fetchHtmlAndExtractImages();
