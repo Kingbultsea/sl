@@ -116,6 +116,7 @@ let intervalId: any; // 用于存储 setInterval 的 ID
 let currentLinks: any[] = []; // 存储当前的链接列表
 
 const fetchHtmlAndExtractImages = async (): Promise<void> => {
+  searchValue.value = "";
   folderLinks.value = [];
   imageUrls.value = [];
   otherFiles.value = [];
@@ -575,7 +576,8 @@ defineExpose({
     </div>
 
     <div class="search-bar">
-      <a-input-search v-model:value="searchValue" placeholder="输入搜索文件目录或名称" style="width: 500px" @search="onSearch" />
+      <a-input-search v-model:value="searchValue" placeholder="输入搜索文件目录或名称（全局搜索）" style="width: 500px"
+        @search="onSearch" />
     </div>
 
     <!-- 文件夹 -->

@@ -166,5 +166,8 @@
   .search-bar {
     display: flex;
     margin-bottom: 20px;
+    align-items: flex-start;
+    flex-direction: column;
+    
   }
 }
