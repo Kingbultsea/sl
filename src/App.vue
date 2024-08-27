@@ -38,7 +38,7 @@ const refreshDocumentList = () => {
 
 <template>
   <div>
-    <a-spin :spinning="spinningStore.spinning.show" tip="上传中，请问刷新页面中断上传">
+    <a-spin :spinning="spinningStore.spinning.show" :tip="spinningStore.spinning.tip">
       <TopBar @refresh="refreshDocumentList" :isDarkMode="isDarkMode" @update:isDarkMode="isDarkMode = $event"
         :uploadPath="uploadPath" />
       <DocumentList :isDarkMode="isDarkMode" ref="documentListRef" />
