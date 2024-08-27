@@ -522,13 +522,23 @@ defineExpose({
   fetchHtmlAndExtractImages
 });
 
+// 首页
+const HomeClick = () => {
+  console.log("HomeClick");
+  if (searchValue.value.length >= 0) {
+    searchValue.value = "";
+    fetchHtmlAndExtractImages();
+  }
+  router.push('/')
+}
+
 </script>
 
 <template>
   <div class="document-list">
     <a-breadcrumb :style="{ backgroundColor: props.isDarkMode ? 'white' : 'inherit', marginBottom: '20px' }">
       <a-breadcrumb-item>
-        <a @click.prevent="router.push('/')" href="#">
+        <a @click.prevent="HomeClick" href="#">
           首页
         </a>
       </a-breadcrumb-item>
