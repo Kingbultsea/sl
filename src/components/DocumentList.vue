@@ -183,7 +183,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       return fn;
     };
     let index = 0;
-    intervalId = setInterval(fn(), 50);
+    intervalId = setInterval(fn(), 300);
 
     sortItems(); // 加载数据后进行排序
   } catch (error) {

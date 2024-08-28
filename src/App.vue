@@ -3,6 +3,7 @@ import { ref, watch, computed } from 'vue';
 import DocumentList from './components/DocumentList.vue';
 import TopBar from './components/TopBar.vue';
 import { useRoute } from 'vue-router';
+// @ts-ignore
 import { useSpinningStore } from '@/stores/spinningStore';
 
 const isDarkMode = ref(false);
