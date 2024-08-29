@@ -14,7 +14,6 @@ const server = httpServer.createServer({
     'Access-Control-Allow-Origin': `http://${ip.address()}:3000`,
     'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept',
     'Access-Control-Allow-Credentials': 'true',
-    'Cache-Control': 'public, max-age=3600' // 设置缓存为1小时（3600秒）
   },
   cache: -1 // 设置缓存为-1以实现`-c-1`效果
   // cache: 3600 // 这里设置为1小时的缓存时间，和上面的 Cache-Control 对应
