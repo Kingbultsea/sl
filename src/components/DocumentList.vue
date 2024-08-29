@@ -615,7 +615,7 @@ const HomeClick = () => {
               class="image-checkbox" :checked="selectedImages.has(item.url)" />
 
             <!-- 如果是选择模式，则显示缩略图，否则显示大图 -->
-            <a-image :src="getThumbnailUrl(item.url)" width="200px" :preview="{ src: item.url }" />
+            <a-image :src="getThumbnailUrl(item.url)" width="200px" :preview="isSelectMode ? false : { src: item.url }" />
 
             <div class="image-name">{{ item.name }}</div>
             <div class="image-name">{{ item.lastModifiedText }}</div>
