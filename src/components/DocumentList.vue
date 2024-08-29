@@ -130,7 +130,11 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
 
   try {
     const curUrl = `${IMAGE_BASE_URL}${folderPath.value}`;
-    const response = await axios.get(curUrl);
+    const response = await axios.get(curUrl, {
+      headers: {
+        'Cache-Control': 'no-store'
+      }
+    });
     // const auth = await axios.get(`${IMAGE_BASE_URL}/check-auth`).then((data) => {
     //   console.log(data)
     //   return true

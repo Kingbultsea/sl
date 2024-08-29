@@ -12,12 +12,13 @@ const server = httpServer.createServer({
   robots: true,
   headers: {
     'Access-Control-Allow-Origin': `http://${ip.address()}:3000`,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept',
     'Access-Control-Allow-Credentials': 'true',
-    // 'Cache-Control': 'public, max-age=3600' // 设置缓存为1小时（3600秒）
+    'Cache-Control': 'public, max-age=3600' // 设置缓存为1小时（3600秒）
   },
-  cache: -1 // 设置缓存为-1以实现`-c-1`效果
-  // cache: 3600 // 这里设置为1小时的缓存时间，和上面的 Cache-Control 对应
+  // cache: -1 // 设置缓存为-1以实现`-c-1`效果
+  cache: 3600 // 这里设置为1小时的缓存时间，和上面的 Cache-Control 对应
 });
 
 // 包装服务器以添加认证
@@ -25,7 +26,8 @@ const protectedServer = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(200, {
       'Access-Control-Allow-Origin': `http://${ip.address()}:3000`,
-      'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Cache-Control',
       'Access-Control-Allow-Credentials': 'true'
     });
     res.end();
