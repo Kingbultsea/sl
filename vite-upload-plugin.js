@@ -5,24 +5,35 @@ import { exec } from 'child_process';
 import fg from 'fast-glob';
 import fs from 'fs';
 import "./http-server";
+import { setAttribute, getAttributeSync, removeAttribute } from 'fs-xattr'
 
 const __dirname = path.resolve(); // 计算 __dirname
 const directory = path.join(__dirname, './images');
 const maxBuffer = 1024 * 1024 * 300; // 设置缓冲区大小为 300MB
+const tagsFilePath = path.join(__dirname, './tags.json');
 
 // 定义图片类型的扩展名
 const imageExtensions = ['.jpeg', '.jpg', '.png', '.gif', '.webp'];
 
-// 日期格式化函数
-function formatDate(date) {
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = months[date.getMonth()];
-  const year = date.getFullYear();
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
+const parseTimeStampFormat2 = (timestamp) => {
+  // 定义选项以进行日期和时间格式化
+  const options = {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false // 使用24小时制
+  };
 
-  return `${day}-${month}-${year} ${hours}:${minutes}`;
+  // 使用 Intl.DateTimeFormat 进行格式化
+  const formatter = new Intl.DateTimeFormat('zh-CN', options);
+
+  // 将时间戳转换为 Date 对象
+  const formattedDate = formatter.format(new Date(timestamp));
+
+  // 输出结果
+  return formattedDate;
 }
 
 // 确保目录存在
@@ -135,14 +146,147 @@ export default function uploadPlugin() {
         }
       });
 
-      // 高亮处理
-      app.post('/highlight-folder', (req, res) => {
-        const folderPath = req.body.folderPath;
+      // 创建标签
+      app.post('/create-tag', (req, res) => {
+        const newTag = req.body.tag;
+        if (!newTag || !newTag.id || !newTag.name || !newTag.color) {
+          return res.status(400).send('Invalid tag data');
+        }
 
-        if (!folderPath) {
+        let tagsData = [];
 
+        if (fs.existsSync(tagsFilePath)) {
+          const data = fs.readFileSync(tagsFilePath);
+          tagsData = JSON.parse(data);
+        }
+
+        tagsData.tags.push(newTag);
+
+        fs.writeFileSync(tagsFilePath, JSON.stringify(tagsData, null, 2));
+        res.send('Tag created successfully');
+      });
+
+      // 删除标签
+      app.post('/delete-tag', (req, res) => {
+        const tagId = req.body.id;
+        if (!tagId) {
+          return res.status(400).send('Tag ID is required');
+        }
+
+        let tagsData = [];
+
+        if (fs.existsSync(tagsFilePath)) {
+          const data = fs.readFileSync(tagsFilePath);
+          tagsData = JSON.parse(data);
+        }
+
+        const updatedTags = tagsData.filter(tag => tag.id !== tagId);
+
+        fs.writeFileSync(tagsFilePath, JSON.stringify(updatedTags, null, 2));
+        res.send('Tag deleted successfully');
+      });
+
+      // 读取标签
+      app.get('/get-tags', (req, res) => {
+        let tagsData = [];
+
+        if (fs.existsSync(tagsFilePath)) {
+          const data = fs.readFileSync(tagsFilePath);
+          tagsData = JSON.parse(data);
+        }
+
+        res.json(tagsData);
+      });
+
+      // 设置标签，利用setAttribute，数值需要传递，对应tags.json 如果id为0 则为删除标签
+      app.post('/set-tags', async (req, res) => {
+        const { files } = req.body; // files 是一个包含多个文件路径和标签的数组
+
+        if (!Array.isArray(files) || files.length === 0) {
+          return res.status(400).send('Invalid files data');
+        }
+
+        try {
+          for (const { path: filePath, tag } of files) {
+            if (!filePath || !tag || !tag.id || !tag.name || !tag.color) {
+              return res.status(400).send(`Invalid tag data or file path for file: ${filePath}`);
+            }
+
+            const formatPath = path.join(directory, filePath);
+            console.log(formatPath);
+
+            // 0 为删除标签
+            if (tag.id === "0") {
+              removeAttribute(formatPath, 'tag.id');
+              removeAttribute(formatPath, 'tag.name');
+              removeAttribute(formatPath, 'tag.color');
+            } else {
+              // 使用 fs-xattr 设置每个文件的扩展属性
+              await setAttribute(formatPath, 'tag.id', tag.id);
+              await setAttribute(formatPath, 'tag.name', tag.name);
+              await setAttribute(formatPath, 'tag.color', tag.color);
+            }
+          }
+
+          res.send('Tags set successfully for all files');
+        } catch (err) {
+          console.error('Error setting tags:', err);
+          res.status(500).send('Failed to set tags');
         }
       });
+
+      // 查询标签
+      app.post('/get-tags-from-file', (req, res) => {
+        const { paths } = req.body; // 从请求体中获取路径数组
+        if (!Array.isArray(paths) || paths.length === 0) {
+          return res.status(400).send('Invalid paths data');
+        }
+
+        // 读取并解析 tags.json 文件
+        let tagsData = [];
+        if (fs.existsSync(tagsFilePath)) {
+          const data = fs.readFileSync(tagsFilePath, 'utf-8');
+          try {
+            tagsData = JSON.parse(data).tags;
+          } catch (err) {
+            console.error('Error parsing tags.json:', err.message);
+            return res.status(500).send('Error reading tags data');
+          }
+        }
+
+        // 查找每个路径的标签信息
+        const results = paths.map(filePath => {
+          try {
+            const formatPath = path.join(directory, filePath);
+            // console.log(formatPath);
+
+
+            const tagId = getAttributeSync(formatPath, 'tag.id').toString();
+            const tagName = getAttributeSync(formatPath, 'tag.name').toString();
+            const tagColor = getAttributeSync(formatPath, 'tag.color').toString();
+
+            if (tagsData.find(tag => tag.id === tagId)) {
+              return {
+                id: tagId,
+                name: tagName,
+                color: tagColor,
+              };
+            } else {
+              removeAttribute(formatPath, 'tag.id');
+              removeAttribute(formatPath, 'tag.name');
+              removeAttribute(formatPath, 'tag.color');
+
+              return {};
+            }
+          } catch (err) {
+            console.error(`Error retrieving tags for ${filePath}:`, err.message);
+            return {}; // 如果出现错误（例如没有找到标签），返回空对象
+          }
+        });
+
+        res.json(results);
+      });
+
 
       // 删除文件夹处理
       app.post('/delete-folder', (req, res) => {
@@ -239,8 +383,9 @@ export default function uploadPlugin() {
             const fileInfo = {
               url: process.env.VITE_IMAGE_BASE_URL + "/" + relativePath, // 相对路径
               name: path.basename(file), // 文件或文件夹的名称
-              lastModifiedText: formatDate(stats.mtime), // 上次修改时间
               fileSize: stats.isDirectory() ? '' : `${stats.size} bytes`, // 文件大小（如果是文件夹则为空）
+              lastModified: stats.mtime.getTime(), // 上次修改文件的时间
+              lastModifiedText: parseTimeStampFormat2(stats.mtime.getTime()), //
             };
 
             if (stats.isDirectory()) {
@@ -255,8 +400,6 @@ export default function uploadPlugin() {
           // 24-Jun-2024 09:32
           // 2024-06-24T01:32:55.930Z
 
-          console.log(results);
-
           res.json(results);
         } catch (error) {
           console.error('Error searching files:', error);
@@ -265,19 +408,6 @@ export default function uploadPlugin() {
       });
 
       server.middlewares.use(app);
-
-      // 启动 http-server 服务
-      // const httpServerCommand = 'http-server ./images -p 8089 --cors -c-1';
-      // exec(httpServerCommand, { maxBuffer: maxBuffer }, (error, stdout, stderr) => {
-      //   if (error) {
-      //     console.error(`Error starting http-server: ${error}`);
-      //     return;
-      //   }
-      //   console.log(`http-server output: ${stdout}`);
-      //   if (stderr) {
-      //     console.error(`http-server error output: ${stderr}`);
-      //   }
-      // });
     }
   };
 }

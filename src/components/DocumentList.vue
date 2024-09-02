@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { ref, watch, h } from 'vue';
+import { ref, watch, h, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
-import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, FileOutlined, DownloadOutlined, PushpinOutlined } from '@ant-design/icons-vue';
+import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, FileOutlined, DownloadOutlined, TagOutlined } from '@ant-design/icons-vue';
 import { Checkbox, Modal, message } from 'ant-design-vue';
 // @ts-ignore
 import { saveAs } from 'file-saver';
 import { useSpinningStore } from '../stores/spinningStore';
 import './DocumentList.css'; // 引入外部 CSS 文件
 
+const baseUrl = window.location.origin + '/'; // 动态获取当前网页的 base URL
 const validImageExtensions = ['.jpeg', '.jpg', '.png', '.gif', '.webp'];
 
 const route = useRoute();
@@ -17,10 +18,108 @@ const spinningStore = useSpinningStore();
 
 const props = defineProps<{ isDarkMode: boolean }>();
 
+type TypeTagColor = { color: string, name: string, id: string }
+const baseTags = ref<TypeTagColor[]>([]);
+const tagSearchValue = ref('');
+const selectedColor = ref('');
+// 计算属性，动态过滤tags
+const filteredTags = computed(() => {
+  return baseTags.value.filter(tag => tag.name.toLowerCase().includes(tagSearchValue.value.toLowerCase()));
+});
+const selectColor = (color: string) => {
+  selectedColor.value = color;
+};
+// 创建标签
+const createTag = async () => {
+  if (filteredTags.value.length !== 0) {
+    return;
+  }
+  if (!selectedColor.value) {
+    alert('请选择一个标签颜色');
+    return;
+  }
+  if (tagSearchValue.value.trim()) {
+    const newTag = {
+      color: selectedColor.value,
+      name: tagSearchValue.value.trim(),
+      id: Date.now().toString() // 生成唯一的ID
+    };
 
-const imageUrls = ref<{ url: string, name: string, lastModified: Date, fileSize: string, lastModifiedText?: string }[]>([]);
-const folderLinks = ref<{ url: string, name: string, lastModified: Date, fileSize: string, lastModifiedText?: string }[]>([]);
-const otherFiles = ref<{ url: string, name: string, lastModified: Date, fileSize: string, lastModifiedText?: string }[]>([]);
+    try {
+      // 将新标签数据发送到服务器
+      await axios.post('/create-tag', { tag: newTag });
+      message.success(`创建标签“${newTag.name}”成功`);
+
+      // 将新标签添加到本地 baseTags 列表
+      baseTags.value.push(newTag);
+
+      // 清空输入和选择的颜色
+      tagSearchValue.value = '';
+      selectedColor.value = '';
+    } catch (error) {
+      console.error('Error creating tag:', error);
+      message.error('创建标签失败');
+    }
+  }
+};
+
+// 设置标签
+const selectTag = async (id: string) => {
+  const tag = baseTags.value.find(tag => tag.id === id);
+  const filesToTag = [...selectedFiles.value, ...selectedImages.value].map(filePath => ({
+    path: filePath.replace(/https?:\/\/[^\/:]+(:\d+)?\//, ''),  // 移除URL前缀，匹配带端口号的路径
+    tag
+  }));
+
+  try {
+    await axios.post('/set-tags', { files: filesToTag });
+    console.log('Tags set successfully for selected files');
+    message.success("设置成功");
+    selectOtherFileIndex.value.forEach((index: number) => {
+      otherFiles.value[index].tag = tag;
+    })
+    selectImageIndex.value.forEach((index: number) => {
+      imageUrls.value[index].tag = tag;
+    })
+
+    console.log(otherFiles.value, imageUrls.value);
+
+    selectOtherFileIndex.value = [];
+    selectImageIndex.value = [];
+
+    selectedFiles.value.clear();
+    selectedImages.value.clear();
+    toggleSelectMode();
+  } catch (error) {
+    console.error('Error setting tags:', error);
+  }
+};
+
+// 查询标签
+const fetchTags = async (files: TypeFile[]) => {
+  // 获取路径数组并移除URL前缀
+  const paths = files.map(image => image.url.replace(/https?:\/\/[^\/:]+(:\d+)?\//, ''));
+
+  try {
+    // 发送请求获取标签信息
+    const response = await axios.post('/get-tags-from-file', { paths });
+
+    // 更新每个imageUrls中的标签信息
+    files.forEach((image, index) => {
+      image.tag = response.data[index]; // 将返回的标签设置到对应的image
+    });
+
+    return Promise.resolve();
+  } catch (error) {
+    console.error('Error fetching tags:', error);
+    return Promise.reject();
+  }
+};
+
+type TypeFile = { url: string, name: string, lastModified: number, fileSize: string, lastModifiedText?: string, tag?: TypeTagColor };
+const imageUrls = ref<TypeFile[]>([]);
+const folderLinks = ref<TypeFile[]>([]);
+const otherFiles = ref<TypeFile[]>([]);
 
 const selectedImages = ref<Set<string>>(new Set());
 const selectedFiles = ref<Set<string>>(new Set());
@@ -41,63 +140,38 @@ const onSearch = (_searchValue: string) => {
     query: _searchValue, // 传递搜索值给后端
   }).then(({ data }) => {
 
-    // Files found: [
-    //   '_0003_walk_22 (4).png',
-    //   'protected/_0003_walk_22 (3).png',
-    //   '1222/123/_0003_walk_22 (2).png',
-    //   '1222/123/_0003_walk_22 (3).png'
-    // ]
-
     // @ts-ignore
     imageUrls.value = data.image;
     folderLinks.value = data.fold;
     otherFiles.value = data.other;
-  }).catch(() => {
+  }).catch((e) => {
     message.error('没有找到相关文件或文件夹');
+    console.log(e);
   }).finally(() => {
     spinningStore.toggleSpinning();
   });
 };
 const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL;
 
-const monthMap: any = {
-  '1月': 'Jan',
-  '2月': 'Feb',
-  '3月': 'Mar',
-  '4月': 'Apr',
-  '5月': 'May',
-  '6月': 'Jun',
-  '7月': 'Jul',
-  '8月': 'Aug',
-  '9月': 'Sep',
-  '10月': 'Oct',
-  '11月': 'Nov',
-  '12月': 'Dec'
-};
-
-const parseDateFormat2 = (date: Date) => {
-
+const parseTimeStampFormat2 = (timestamp: number) => {
   // 定义选项以进行日期和时间格式化
-  const options = {
+  const options: Intl.DateTimeFormatOptions = {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: 'numeric',
     minute: 'numeric',
-    second: 'numeric',
     hour12: false // 使用24小时制
   };
 
   // 使用 Intl.DateTimeFormat 进行格式化
-  // @ts-ignore
   const formatter = new Intl.DateTimeFormat('zh-CN', options);
 
-
-  const formattedDate = formatter.format(date);
+  // 将时间戳转换为 Date 对象
+  const formattedDate = formatter.format(new Date(timestamp));
 
   // 输出结果
   return formattedDate;
-
 }
 
 const parseDate = (dateString: string) => {
@@ -108,11 +182,11 @@ const parseDate = (dateString: string) => {
 
   // 构建有效的日期字符串
   const formattedDateString = `${day} ${monthEnglish} ${year} ${timePart}`;
-  return new Date(formattedDateString);
+  return new Date(formattedDateString).getTime();
 };
 
 // 获取文件列表
-let intervalId: any; // 用于存储 setInterval 的 ID
+let timeoutId: any; // 用于存储 setInterval 的 ID
 let currentLinks: any[] = []; // 存储当前的链接列表
 
 const fetchHtmlAndExtractImages = async (): Promise<void> => {
@@ -124,19 +198,13 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
   selectedFiles.value.clear();
   currentLinks = [];
 
-  if (intervalId) {
-    clearInterval(intervalId);
+  if (timeoutId) {
+    clearInterval(timeoutId);
   }
 
   try {
     const curUrl = `${IMAGE_BASE_URL}${folderPath.value}`;
     const response = await axios.get(curUrl);
-    // const auth = await axios.get(`${IMAGE_BASE_URL}/check-auth`).then((data) => {
-    //   console.log(data)
-    //   return true
-    // }).catch(e => {
-    //   return false;
-    // });
     const html = response.data;
 
     const parser = new DOMParser();
@@ -147,13 +215,13 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
 
     links.forEach((link, index) => {
       let fileName = link.textContent?.trim();
-      const lastModifiedText = dates[index].textContent?.trim();
+      let lastModifiedText = dates[index].textContent?.trim();
+
       const lastModified = parseDate(lastModifiedText!);
 
-      const fileSize = sizes[index].textContent?.trim() || '0'; // 获取文件大小
+      lastModifiedText = parseTimeStampFormat2(lastModified);
 
-      // console.log(fileName!.startsWith('protected'));
-      //  (!fileName!.startsWith('protected')
+      const fileSize = sizes[index].textContent?.trim() || '0'; // 获取文件大小
 
       if (fileName!.endsWith('/')) {
         if (fileName !== '../') {
@@ -175,15 +243,20 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       const batchSize = 40; // 每次推送的数量
       if (index < currentLinks.length) {
         const nextBatch = currentLinks.slice(index, index + batchSize);
-        imageUrls.value.push(...nextBatch);
-        index += batchSize;
+        // 直接修改原对象指针
+        fetchTags(nextBatch).then(() => {
+          console.log(nextBatch);
+          imageUrls.value.push(...nextBatch);
+          index += batchSize;
+          timeoutId = setTimeout(fn(), 300);
+        });
       } else {
-        clearInterval(intervalId); // 所有数据推送完成后清除 interval
+        // clearInterval(intervalId); // 所有数据推送完成后清除 interval
       }
       return fn;
     };
     let index = 0;
-    intervalId = setInterval(fn(), 300);
+    fn();
 
     sortItems(); // 加载数据后进行排序
   } catch (error) {
@@ -196,20 +269,29 @@ const navigateToFolder = (folderName: string) => {
   router.push(`${folderPath.value}${folderPath.value === '/' ? '' : '/'}${folderName}`);
 };
 
+const selectImageIndex = ref<number[]>([]);
+
 // 批量选择
-const handleSelectImage = (url: string, checked: boolean) => {
+const handleSelectImage = (url: string, checked: boolean, index: number) => {
   if (checked) {
     selectedImages.value.add(url);
+    selectImageIndex.value.push(index);
   } else {
     selectedImages.value.delete(url);
+    selectImageIndex.value.splice(index, 1);
   }
 };
 
-const handleSelectFile = (url: string, checked: boolean) => {
+const selectOtherFileIndex = ref<number[]>([]);
+
+// 分开是因为大文件 和 图片的方式是不一样的，这种文件是需要额外的设置下载的，所以分开选择
+const handleSelectFile = (url: string, checked: boolean, index: number) => {
   if (checked) {
     selectedFiles.value.add(url);
+    selectOtherFileIndex.value.push(index);
   } else {
     selectedFiles.value.delete(url);
+    selectOtherFileIndex.value.splice(index, 1);
   }
 };
 
@@ -298,19 +380,6 @@ const uploadNextFile = async () => {
     uploadNextFile(); // 继续尝试上传下一个文件，即使当前文件上传失败
   }
 };
-
-// 高亮文件夹
-const HighLightDocs = (folderPath: string) => {
-
-  // 发送给服务器
-  axios.post('/highlight-folder', { folderPath })
-    .then(() => {
-      message.success('高亮文件成功');
-    })
-    .catch(error => {
-      message.error('高亮文件失败');
-    });
-}
 
 // 创建文件夹
 const createFolder = () => {
@@ -531,6 +600,15 @@ const HomeClick = () => {
   router.push('/')
 }
 
+onMounted(async () => {
+  try {
+    const response = await axios.get('/get-tags');
+    baseTags.value = response.data.tags; // 假设服务器返回的数据是包含标签的数组
+  } catch (error) {
+    console.error('Error fetching tags:', error);
+  }
+});
+
 </script>
 
 <template>
@@ -559,7 +637,8 @@ const HomeClick = () => {
         :
         '批量选择' }}</a-button>
       <a-button class="a_button_class" :icon="h(DeleteOutlined)"
-        v-if="selectedImages.size > 0 || selectedFiles.size > 0" danger @click="deleteSelectedImages">批量删除</a-button>
+        v-if="selectedImages.size > 0 || selectedFiles.size > 0" style="color: #ff4d4f!important" danger
+        @click="deleteSelectedImages">批量删除</a-button>
       <a-button class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑'
         }}</a-button>
       <a-button class="a_button_class" :icon="h(DownloadOutlined)"
@@ -576,12 +655,42 @@ const HomeClick = () => {
         创建文件夹
       </a-button>
 
-      <a-select v-model:value="sortOption" style="width: 110px; margin-right: 0px;">
+      <a-select v-model:value="sortOption" style="width: 110px; margin-right: 10px;">
         <a-select-option value="name-asc">名称降序</a-select-option>
         <a-select-option value="name-desc">名称升序</a-select-option>
         <a-select-option value="date-asc">日期降序</a-select-option>
         <a-select-option value="date-desc">日期升序</a-select-option>
       </a-select>
+
+      <a-dropdown trigger="click" v-if="selectedImages.size > 0 || selectedFiles.size > 0">
+        <template #overlay>
+          <div style="padding: 16px; background: white; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
+            <a-input v-model:value="tagSearchValue" placeholder="创建或搜索标签" @keydown.enter="createTag" @click.stop
+              style="width: 300px; margin-bottom: 14px;" />
+            <div v-if="filteredTags.length > 0">
+              <div v-for="tag in filteredTags" :key="tag.id" @click="selectTag(tag.id)"
+                style="display: flex; align-items: center; margin-bottom: 4px; cursor: pointer;">
+                <span
+                  :style="{ backgroundColor: tag.color, display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '8px' }"></span>
+                {{ tag.name }}
+              </div>
+            </div>
+            <div v-else>
+              创建新标签 "{{ tagSearchValue }}"
+              <div style="font-size: 12px; color: #0000004f">(在输入框中按回车键即可创建，点击下方选择标签颜色)</div>
+              <!-- 选择标签的颜色 -->
+              <div style="display: flex; align-items: center; margin-top: 8px;">
+                <div @click.stop v-for="tag in baseTags" :key="tag.id" @click="selectColor(tag.color)"
+                  :style="{ backgroundColor: tag.color, display: 'inline-block', width: '20px', height: '20px', borderRadius: '50%', marginRight: '8px', cursor: 'pointer', border: selectedColor === tag.color ? '2px solid rgb(0 0 0 / 49%)' : 'none' }">
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+        <a-button class="a_button_class" :icon="h(TagOutlined)">
+          编辑标签
+        </a-button>
+      </a-dropdown>
     </div>
 
     <div class="search-bar">
@@ -597,8 +706,8 @@ const HomeClick = () => {
           <span class="folder-name">{{ folder.name }}</span>
         </a>
         <div>
-          <a-button v-if="isEditMode" type="link" style="color: #30fb00" :icon="h(PushpinOutlined)"
-            @click="HighLightDocs(folder.url)" />
+          <!-- <a-button v-if="isEditMode" type="link" style="color: #30fb00" :icon="h(PushpinOutlined)"
+            @click="HighLightDocs(folder.url)" /> -->
           <a-button v-if="isEditMode" type="link" :icon="h(EditOutlined)" @click="editFolderName(folder.name)" />
           <a-button v-if="isEditMode" type="link" danger :icon="h(DeleteOutlined)"
             @click="confirmDeleteFolder(folder.name)" />
@@ -608,17 +717,23 @@ const HomeClick = () => {
 
     <div class="gallery">
       <a-image-preview-group>
-        <div v-for="item in imageUrls" :key="item.url" class="image-wrapper"
-          @click="isSelectMode ? handleSelectImage(item.url, !selectedImages.has(item.url)) : null">
+        <div v-for="(item, index) in imageUrls" :key="item.url" class="image-wrapper"
+          @click="(isSelectMode || isEditMode) ? handleSelectImage(item.url, !selectedImages.has(item.url), index) : null">
           <div class="image-container">
-            <Checkbox v-if="isSelectMode" @change="(e) => handleSelectImage(item.url, e.target.checked)"
+            <Checkbox v-if="isSelectMode" @change="(e: any) => handleSelectImage(item.url, e.target.checked, index)"
               class="image-checkbox" :checked="selectedImages.has(item.url)" />
 
             <!-- 如果是选择模式，则显示缩略图，否则显示大图 -->
-            <a-image :src="getThumbnailUrl(item.url)" width="200px" :preview="isSelectMode ? false : { src: item.url }" />
+            <a-image :src="getThumbnailUrl(item.url)" width="200px"
+              :preview="(isSelectMode || isEditMode) ? false : { src: item.url }" />
 
             <div class="image-name">{{ item.name }}</div>
             <div class="image-name">{{ item.lastModifiedText }}</div>
+            <div v-if="item.tag?.id && item.tag?.id !== '0'" class="image-name" style="display: flex;justify-content: center;align-items: center;">
+              <span
+                :style="{ backgroundColor: item.tag?.color, display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '8px' }"></span>
+              {{ item.tag?.name }}
+            </div>
             <div v-if="isEditMode" class="delete-button">
               <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
             </div>
@@ -629,10 +744,10 @@ const HomeClick = () => {
 
     <div v-if="otherFiles.length > 0" style="text-align: left;margin-top: 30px;">其他文件</div>
     <div class="other-files">
-      <div v-for="file in otherFiles" :key="file.url" class="file-wrapper"
-        @click="isSelectMode ? handleSelectFile(file.url, !selectedFiles.has(file.url)) : null">
+      <div v-for="(file, index) in otherFiles" :key="file.url" class="file-wrapper"
+        @click="isSelectMode ? handleSelectFile(file.url, !selectedFiles.has(file.url), index) : null">
         <div class="file-container">
-          <Checkbox v-if="isSelectMode" @change="(e) => handleSelectFile(file.url, e.target.checked)"
+          <Checkbox v-if="isSelectMode" @change="(e: any) => handleSelectFile(file.url, e.target.checked, index)"
             class="file-checkbox" :checked="selectedFiles.has(file.url)" />
           <div style="display: flex; align-items: center;margin-bottom: 10px;">
             <FileOutlined class="file-icon" />

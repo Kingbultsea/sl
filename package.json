@@ -19,6 +19,7 @@
     "file-saver": "^2.0.5",
     "finalhandler": "^1.2.0",
     "fs-extra": "^11.2.0",
+    "fs-xattr": "^0.4.0",
     "glob": "^10.0.0",
     "http-auth": "^4.2.0",
     "http-server": "^14.1.1",

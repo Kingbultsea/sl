@@ -5,6 +5,7 @@ import ip from 'ip';
 import path from 'path';
 import sharp from 'sharp';
 import fs from 'fs';
+import { getAttributeSync } from 'fs-xattr'
 
 // 创建http-server实例，根目录设置为 ./images
 const server = httpServer.createServer({
@@ -19,7 +20,6 @@ const server = httpServer.createServer({
   // cache: 3600 // 这里设置为1小时的缓存时间，和上面的 Cache-Control 对应
 });
 
-// 包装服务器以添加认证
 const protectedServer = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(200, {
@@ -47,7 +47,19 @@ const protectedServer = http.createServer((req, res) => {
     // 生成服务器上的文件路径
     const imagePath = path.join(__dirname, 'images', decodedImagePath);
 
+    // 测试代码 testcode
+    // if (imagePath === "/Users/starlink_brench01/Desktop/DongGuan/my-vue-app/images/Role_1.png") {
+    //   // setAttribute(imagePath, "tag.id", "1");
+    //   // setAttribute(imagePath, "tag.name", "名称");
+    //   // setAttribute(imagePath, "tag.color", "#ff9100");
+    //   console.log(imagePath);
 
+    //   setTimeout(async () => {
+    //     console.log(getAttributeSync(imagePath, 'tag.id').toString())
+    //     console.log(getAttributeSync(imagePath, 'tag.name').toString())
+    //     console.log(getAttributeSync(imagePath, 'tag.color').toString())
+    //   }, 1000);
+    // }
 
     // 检查图像文件是否存在
     if (fs.existsSync(imagePath)) {
