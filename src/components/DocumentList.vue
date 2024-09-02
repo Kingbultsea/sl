@@ -66,7 +66,7 @@ const createTag = async () => {
 // 设置标签
 const selectTag = async (id: string) => {
   const tag = baseTags.value.find(tag => tag.id === id);
-  const filesToTag = [...selectedFiles.value, ...selectedImages.value].map(filePath => ({
+  const filesToTag = [...selectedFiles.value, ...selectedImages.value, ...selectedFold.value].map(filePath => ({
     path: filePath.replace(/https?:\/\/[^\/:]+(:\d+)?\//, ''),  // 移除URL前缀，匹配带端口号的路径
     tag
   }));
@@ -81,14 +81,17 @@ const selectTag = async (id: string) => {
     selectImageIndex.value.forEach((index: number) => {
       imageUrls.value[index].tag = tag;
     })
-
-    console.log(otherFiles.value, imageUrls.value);
+    selectFoldIndex.value.forEach((index: number) => {
+      folderLinks.value[index].tag = tag;
+    })
 
     selectOtherFileIndex.value = [];
     selectImageIndex.value = [];
+    selectFoldIndex.value = [];
 
     selectedFiles.value.clear();
     selectedImages.value.clear();
+    selectedFold.value.clear();
     toggleSelectMode();
   } catch (error) {
     console.error('Error setting tags:', error);
@@ -123,6 +126,7 @@ const otherFiles = ref<TypeFile[]>([]);
 
 const selectedImages = ref<Set<string>>(new Set());
 const selectedFiles = ref<Set<string>>(new Set());
+const selectedFold = ref<Set<string>>(new Set());
 const isSelectMode = ref(false);
 const isEditMode = ref(false);
 const folderPath = ref(route.params.folderPath as String || '/');
@@ -196,6 +200,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
   otherFiles.value = [];
   selectedImages.value.clear();
   selectedFiles.value.clear();
+  selectedFold.value.clear();
   currentLinks = [];
 
   if (timeoutId) {
@@ -226,7 +231,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       if (fileName!.endsWith('/')) {
         if (fileName !== '../') {
           fileName = fileName?.replace(/\/$/, ''); // 去除末尾的斜杠
-          folderLinks.value.push({ url: curUrl + fileName, name: fileName!, lastModified, fileSize, lastModifiedText });
+          folderLinks.value.push({ url: "/" + curUrl + fileName, name: fileName!, lastModified, fileSize, lastModifiedText });
         }
       } else {
         const extension = fileName!.split('.').pop()?.toLowerCase();
@@ -237,6 +242,8 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
         }
       }
     });
+
+    fetchTags(folderLinks.value);
 
     // 定时推送数据到 imageUrls，每0.5秒推送10个数据
     const fn = () => {
@@ -279,6 +286,19 @@ const handleSelectImage = (url: string, checked: boolean, index: number) => {
   } else {
     selectedImages.value.delete(url);
     selectImageIndex.value.splice(index, 1);
+  }
+};
+
+const selectFoldIndex = ref<number[]>([]);
+
+// 批量选择
+const handleSelectFolds = (url: string, checked: boolean, index: number) => {
+  if (checked) {
+    selectedFold.value.add(url);
+    selectFoldIndex.value.push(index);
+  } else {
+    selectedFold.value.delete(url);
+    selectFoldIndex.value.splice(index, 1);
   }
 };
 
@@ -637,7 +657,7 @@ onMounted(async () => {
         :
         '批量选择' }}</a-button>
       <a-button class="a_button_class" :icon="h(DeleteOutlined)"
-        v-if="selectedImages.size > 0 || selectedFiles.size > 0" style="color: #ff4d4f!important" danger
+        v-if="(selectedImages.size > 0 || selectedFiles.size > 0) && selectedFold.size === 0" style="color: #ff4d4f!important" danger
         @click="deleteSelectedImages">批量删除</a-button>
       <a-button class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑'
         }}</a-button>
@@ -662,7 +682,7 @@ onMounted(async () => {
         <a-select-option value="date-desc">日期升序</a-select-option>
       </a-select>
 
-      <a-dropdown trigger="click" v-if="selectedImages.size > 0 || selectedFiles.size > 0">
+      <a-dropdown trigger="click" v-if="selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0">
         <template #overlay>
           <div style="padding: 16px; background: white; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
             <a-input v-model:value="tagSearchValue" placeholder="创建或搜索标签" @keydown.enter="createTag" @click.stop
@@ -700,17 +720,28 @@ onMounted(async () => {
 
     <!-- 文件夹 -->
     <div class="folders" v-if="folderLinks.length > 0">
-      <div v-for="folder in folderLinks" :key="folder.url" class="folder-container">
-        <a @click.prevent="navigateToFolder(folder.name)" href="#">
-          <FolderOutlined class="folder-icon" />
-          <span class="folder-name">{{ folder.name }}</span>
-        </a>
-        <div>
-          <!-- <a-button v-if="isEditMode" type="link" style="color: #30fb00" :icon="h(PushpinOutlined)"
-            @click="HighLightDocs(folder.url)" /> -->
-          <a-button v-if="isEditMode" type="link" :icon="h(EditOutlined)" @click="editFolderName(folder.name)" />
-          <a-button v-if="isEditMode" type="link" danger :icon="h(DeleteOutlined)"
-            @click="confirmDeleteFolder(folder.name)" />
+      <div v-for="(folder, index) in folderLinks" :key="folder.url" class="folder-container">
+        <Checkbox v-if="isSelectMode" @change="(e: any) => handleSelectFolds(folder.url, e.target.checked, index)"
+          class="image-checkbox" :checked="selectedFold.has(folder.url)" />
+
+        <div style="display: flex; justify-content: space-between; padding: 1em;">
+          <a @click.prevent="folderLinks.length > 0 ? handleSelectFolds(folder.url, !selectedFold.has(folder.url), index) : navigateToFolder(folder.name)"
+            href="#">
+            <FolderOutlined class="folder-icon" />
+            <span class="folder-name">{{ folder.name }}</span>
+          </a>
+          <div>
+            <a-button v-if="isEditMode" type="link" :icon="h(EditOutlined)" @click="editFolderName(folder.name)" />
+            <a-button v-if="isEditMode" type="link" danger :icon="h(DeleteOutlined)"
+              @click="confirmDeleteFolder(folder.name)" />
+          </div>
+        </div>
+
+        <div v-if="folder.tag?.id && folder.tag?.id !== '0'" class="image-name"
+          style="display: flex;justify-content: center;align-items: center;">
+          <span
+            :style="{ backgroundColor: folder.tag?.color, display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '8px' }"></span>
+          {{ folder.tag?.name }}
         </div>
       </div>
     </div>
@@ -729,7 +760,8 @@ onMounted(async () => {
 
             <div class="image-name">{{ item.name }}</div>
             <div class="image-name">{{ item.lastModifiedText }}</div>
-            <div v-if="item.tag?.id && item.tag?.id !== '0'" class="image-name" style="display: flex;justify-content: center;align-items: center;">
+            <div v-if="item.tag?.id && item.tag?.id !== '0'" class="image-name"
+              style="display: flex;justify-content: center;align-items: center;">
               <span
                 :style="{ backgroundColor: item.tag?.color, display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '8px' }"></span>
               {{ item.tag?.name }}
