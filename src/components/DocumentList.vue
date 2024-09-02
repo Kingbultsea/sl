@@ -18,6 +18,48 @@ const spinningStore = useSpinningStore();
 
 const props = defineProps<{ isDarkMode: boolean }>();
 
+// todo 按照目前的现有的结构，再弄一个上层父级的分类
+// { { id: 标签id, name: "标签名称", color: "标签颜色", list: { imageUrls: [], folderLinks: [], otherFiles: [] }  } }
+const sortPanelData = ref<{ id: string, name: string, color: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }[]>([]);
+
+const sortFilesByTag = () => {
+  const tagMap = new Map<string, { id: string, name: string, color: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }>();
+
+  const processFile = (file: TypeFile, type: keyof typeof sortPanelData.value[0]['list']) => {
+    if (file.tag) {
+      const { id = "0", name, color } = file.tag;
+
+      if (!tagMap.has(id)) {
+        tagMap.set(id, {
+          id,
+          name,
+          color,
+          list: { imageUrls: [], folderLinks: [], otherFiles: [] }
+        });
+      }
+
+      const tagEntry = tagMap.get(id);
+      if (tagEntry) {
+        tagEntry.list[type].push(file);
+      }
+    }
+  };
+
+  // 处理 imageUrls
+  imageUrls.value.forEach(file => processFile(file, 'imageUrls'));
+
+  // 处理 folderLinks
+  folderLinks.value.forEach(file => processFile(file, 'folderLinks'));
+
+  // 处理 otherFiles
+  otherFiles.value.forEach(file => processFile(file, 'otherFiles'));
+
+  // 将结果转换为数组
+  sortPanelData.value = Array.from(tagMap.values());
+
+  console.log(sortPanelData.value);
+};
+
 type TypeTagColor = { color: string, name: string, id: string }
 const baseTags = ref<TypeTagColor[]>([]);
 const tagSearchValue = ref('');
@@ -684,7 +726,7 @@ onMounted(async () => {
         <a-select-option value="date-desc">日期升序</a-select-option>
       </a-select>
 
-      <a-button :icon="h(OrderedListOutlined)" class="a_button_class">
+      <a-button :icon="h(OrderedListOutlined)" class="a_button_class" @click="sortFilesByTag">
         按类型分类
       </a-button>
 
