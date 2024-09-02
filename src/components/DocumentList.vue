@@ -2,7 +2,7 @@
 import { ref, watch, h, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
-import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, FileOutlined, DownloadOutlined, TagOutlined } from '@ant-design/icons-vue';
+import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, FileOutlined, DownloadOutlined, TagOutlined, OrderedListOutlined } from '@ant-design/icons-vue';
 import { Checkbox, Modal, message } from 'ant-design-vue';
 // @ts-ignore
 import { saveAs } from 'file-saver';
@@ -243,7 +243,9 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       }
     });
 
+    // todo 合并查询
     fetchTags(folderLinks.value);
+    fetchTags(otherFiles.value);
 
     // 定时推送数据到 imageUrls，每0.5秒推送10个数据
     const fn = () => {
@@ -657,8 +659,8 @@ onMounted(async () => {
         :
         '批量选择' }}</a-button>
       <a-button class="a_button_class" :icon="h(DeleteOutlined)"
-        v-if="(selectedImages.size > 0 || selectedFiles.size > 0) && selectedFold.size === 0" style="color: #ff4d4f!important" danger
-        @click="deleteSelectedImages">批量删除</a-button>
+        v-if="(selectedImages.size > 0 || selectedFiles.size > 0) && selectedFold.size === 0"
+        style="color: #ff4d4f!important" danger @click="deleteSelectedImages">批量删除</a-button>
       <a-button class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑'
         }}</a-button>
       <a-button class="a_button_class" :icon="h(DownloadOutlined)"
@@ -681,6 +683,10 @@ onMounted(async () => {
         <a-select-option value="date-asc">日期降序</a-select-option>
         <a-select-option value="date-desc">日期升序</a-select-option>
       </a-select>
+
+      <a-button :icon="h(OrderedListOutlined)" class="a_button_class">
+        按类型分类
+      </a-button>
 
       <a-dropdown trigger="click" v-if="selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0">
         <template #overlay>
@@ -725,7 +731,7 @@ onMounted(async () => {
           class="image-checkbox" :checked="selectedFold.has(folder.url)" />
 
         <div style="display: flex; justify-content: space-between; padding: 1em;">
-          <a @click.prevent="folderLinks.length > 0 ? handleSelectFolds(folder.url, !selectedFold.has(folder.url), index) : navigateToFolder(folder.name)"
+          <a @click.prevent="isSelectMode ? handleSelectFolds(folder.url, !selectedFold.has(folder.url), index) : navigateToFolder(folder.name)"
             href="#">
             <FolderOutlined class="folder-icon" />
             <span class="folder-name">{{ folder.name }}</span>
@@ -789,6 +795,13 @@ onMounted(async () => {
           <a type="link" style="color: #1677ff" :href="file.url" target="_blank">下载</a>
           <div class="file-name">{{ file.name }}</div>
           <div class="file-name">{{ file.lastModifiedText }}</div>
+          <div v-if="file.tag?.id && file.tag?.id !== '0'" class="file-name"
+            style="display: flex;justify-content: center;align-items: center;">
+            <span
+              :style="{ backgroundColor: file.tag?.color, display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '8px' }"></span>
+            {{ file.tag?.name }}
+          </div>
+
           <div v-if="isEditMode" class="delete-button" style="top: 0px">
             <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
           </div>
