@@ -27,7 +27,7 @@ const props = defineProps<{ isDarkMode: boolean }>();
 // { { id: 标签id, name: "标签名称", color: "标签颜色", list: { imageUrls: [], folderLinks: [], otherFiles: [] }  } }
 const sortPanelData = ref<{ id: string, name: string, color: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }[]>([]);
 
-const isSortByFilesByTagMode = ref(false);
+const isSortByFilesByTagMode = ref(JSON.parse(localStorage.getItem('isSortByFilesByTagMode') || 'false'));
 
 watch(isSortByFilesByTagMode, (newValue) => {
   localStorage.setItem('isSortByFilesByTagMode', JSON.stringify(newValue));
@@ -338,11 +338,11 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
 
     // todo 合并查询
     if (folderLinks.value.length > 0) {
-      fetchTags(folderLinks.value);
+      await fetchTags(folderLinks.value);
       console.log(folderLinks.value);
     }
     if (otherFiles.value.length > 0) {
-      fetchTags(otherFiles.value);
+      await fetchTags(otherFiles.value);
     }
 
     // 定时推送数据到 imageUrls，每0.5秒推送10个数据
@@ -360,10 +360,8 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       } else {
         // 完成  isSortByFilesByTagMode 都还没更新，就已经去触发这个了，所以不会渲染
 
-        setTimeout(() => {
-          sortFilesByTag();
-          sortItems(); // 加载数据后进行排序
-        }, 20);
+        sortFilesByTag();
+        sortItems(); // 加载数据后进行排序
         // clearInterval(intervalId); // 所有数据推送完成后清除 interval
       }
       return fn;
@@ -778,10 +776,10 @@ onMounted(async () => {
     const response = await axios.get('/get-tags');
     baseTags.value = response.data.tags; // 假设服务器返回的数据是包含标签的数组
 
-    const storedValue = localStorage.getItem('isSortByFilesByTagMode');
-    if (storedValue !== null) {
-      isSortByFilesByTagMode.value = JSON.parse(storedValue);
-    }
+    // const storedValue = localStorage.getItem('isSortByFilesByTagMode');
+    // if (storedValue !== null) {
+    //   isSortByFilesByTagMode.value = JSON.parse(storedValue);
+    // }
   } catch (error) {
     console.error('Error fetching tags:', error);
   }
