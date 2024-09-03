@@ -167,6 +167,11 @@
     margin-bottom: 20px;
     align-items: flex-start;
     flex-direction: column;
-    
+
+  }
+
+  .high-line {
+    border: 2px solid red;
+    box-sizing: border-box;
   }
 }

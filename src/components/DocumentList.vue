@@ -7,9 +7,14 @@ import { Checkbox, Modal, message } from 'ant-design-vue';
 // @ts-ignore
 import { saveAs } from 'file-saver';
 import { useSpinningStore } from '../stores/spinningStore';
+import Folder from './Folder.vue';
+import Gallery from './Gallery.vue';
+
+// @ts-ignore 这里组件类型莫名报错
+import OtherFile from './OtherFile.vue';
+
 import './DocumentList.css'; // 引入外部 CSS 文件
 
-const baseUrl = window.location.origin + '/'; // 动态获取当前网页的 base URL
 const validImageExtensions = ['.jpeg', '.jpg', '.png', '.gif', '.webp'];
 
 const route = useRoute();
@@ -22,7 +27,16 @@ const props = defineProps<{ isDarkMode: boolean }>();
 // { { id: 标签id, name: "标签名称", color: "标签颜色", list: { imageUrls: [], folderLinks: [], otherFiles: [] }  } }
 const sortPanelData = ref<{ id: string, name: string, color: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }[]>([]);
 
+const isSortByFilesByTagMode = ref(false);
+
+watch(isSortByFilesByTagMode, (newValue) => {
+  localStorage.setItem('isSortByFilesByTagMode', JSON.stringify(newValue));
+});
+
 const sortFilesByTag = () => {
+  if (!isSortByFilesByTagMode.value) {
+    return;
+  }
   const tagMap = new Map<string, { id: string, name: string, color: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }>();
 
   const processFile = (file: TypeFile, type: keyof typeof sortPanelData.value[0]['list']) => {
@@ -55,10 +69,21 @@ const sortFilesByTag = () => {
   otherFiles.value.forEach(file => processFile(file, 'otherFiles'));
 
   // 将结果转换为数组
-  sortPanelData.value = Array.from(tagMap.values());
+  // sortPanelData.value = Array.from(tagMap.values());
+
+  // 将结果从小到大排序
+  sortPanelData.value = Array.from(tagMap.values()).sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
 
   console.log(sortPanelData.value);
 };
+
+const ToggleIsSortByFilesByTagMode = () => {
+  isSortByFilesByTagMode.value = !isSortByFilesByTagMode.value;
+
+  if (isSortByFilesByTagMode.value) {
+    sortFilesByTag();
+  }
+}
 
 type TypeTagColor = { color: string, name: string, id: string }
 const baseTags = ref<TypeTagColor[]>([]);
@@ -117,28 +142,35 @@ const selectTag = async (id: string) => {
     await axios.post('/set-tags', { files: filesToTag });
     console.log('Tags set successfully for selected files');
     message.success("设置成功");
-    selectOtherFileIndex.value.forEach((index: number) => {
-      otherFiles.value[index].tag = tag;
-    })
-    selectImageIndex.value.forEach((index: number) => {
-      imageUrls.value[index].tag = tag;
-    })
-    selectFoldIndex.value.forEach((index: number) => {
-      folderLinks.value[index].tag = tag;
-    })
 
-    selectOtherFileIndex.value = [];
-    selectImageIndex.value = [];
-    selectFoldIndex.value = [];
+    fetchHtmlAndExtractImages();
 
-    selectedFiles.value.clear();
-    selectedImages.value.clear();
-    selectedFold.value.clear();
+    // 省时 可优化
+    // selectOtherFileIndex.value.forEach((index: number) => {
+    //   otherFiles.value[index].tag = tag;
+    // })
+    // selectImageIndex.value.forEach((index: number) => {
+    //   imageUrls.value[index].tag = tag;
+    // })
+    // selectFoldIndex.value.forEach((index: number) => {
+    //   folderLinks.value[index].tag = tag;
+    // })
+
     toggleSelectMode();
   } catch (error) {
     console.error('Error setting tags:', error);
   }
 };
+
+const ClearSelect = () => {
+  selectOtherFileIndex.value = [];
+  selectImageIndex.value = [];
+  selectFoldIndex.value = [];
+
+  selectedFiles.value.clear();
+  selectedImages.value.clear();
+  selectedFold.value.clear();
+}
 
 // 查询标签
 const fetchTags = async (files: TypeFile[]) => {
@@ -184,19 +216,32 @@ const onSearch = (_searchValue: string) => {
   // 发送 POST 请求到后端
   axios.post("/search-files", {
     query: _searchValue, // 传递搜索值给后端
-  }).then(({ data }) => {
+  }).then(async ({ data }) => {
 
     // @ts-ignore
     imageUrls.value = data.image;
     folderLinks.value = data.fold;
     otherFiles.value = data.other;
+
+    // todo 搜索的时候 调用标签信息 这块代码很烂，需要修改，合并为一个请求
+    if (imageUrls.value.length > 0) {
+      await fetchTags(imageUrls.value);
+    }
+    if (folderLinks.value.length > 0) {
+      await fetchTags(folderLinks.value);
+    }
+    if (otherFiles.value.length > 0) {
+      await fetchTags(otherFiles.value);
+    }
   }).catch((e) => {
     message.error('没有找到相关文件或文件夹');
     console.log(e);
   }).finally(() => {
     spinningStore.toggleSpinning();
+    sortFilesByTag();
   });
 };
+
 const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL;
 
 const parseTimeStampFormat2 = (timestamp: number) => {
@@ -273,7 +318,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       if (fileName!.endsWith('/')) {
         if (fileName !== '../') {
           fileName = fileName?.replace(/\/$/, ''); // 去除末尾的斜杠
-          folderLinks.value.push({ url: "/" + curUrl + fileName, name: fileName!, lastModified, fileSize, lastModifiedText });
+          folderLinks.value.push({ url: curUrl + fileName, name: fileName!, lastModified, fileSize, lastModifiedText }); // 为什么要加上 "/" +  ？
         }
       } else {
         const extension = fileName!.split('.').pop()?.toLowerCase();
@@ -286,8 +331,12 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     });
 
     // todo 合并查询
-    fetchTags(folderLinks.value);
-    fetchTags(otherFiles.value);
+    if (folderLinks.value.length > 0) {
+      fetchTags(folderLinks.value);
+    }
+    if (otherFiles.value.length > 0) {
+      fetchTags(otherFiles.value);
+    }
 
     // 定时推送数据到 imageUrls，每0.5秒推送10个数据
     const fn = () => {
@@ -302,6 +351,9 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
           timeoutId = setTimeout(fn(), 300);
         });
       } else {
+        // 完成
+        sortFilesByTag();
+        sortItems(); // 加载数据后进行排序
         // clearInterval(intervalId); // 所有数据推送完成后清除 interval
       }
       return fn;
@@ -309,7 +361,6 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     let index = 0;
     fn();
 
-    sortItems(); // 加载数据后进行排序
   } catch (error) {
     console.error('Error fetching HTML:', error);
   }
@@ -362,6 +413,12 @@ const handleSelectFile = (url: string, checked: boolean, index: number) => {
 // 切换选择模式
 const toggleSelectMode = () => {
   isSelectMode.value = !isSelectMode.value;
+
+  if (isSelectMode.value == false) {
+    ClearSelect();
+  } else {
+    isEditMode.value = false;
+  }
 };
 
 // 切换编辑模式
@@ -478,7 +535,7 @@ const createFolder = () => {
 };
 
 // 编辑文件夹名称
-const editFolderName = (oldName: string) => {
+const editFolderName = (oldName: string, index: number) => {
   let inputValue = oldName;
 
   Modal.confirm({
@@ -500,8 +557,11 @@ const editFolderName = (oldName: string) => {
 
       return axios.post('/edit-folder', { folderPath: folderPathValue, name: newFolderPathValue })
         .then(() => {
-          message.success('文件夹名称修改成功');
-          fetchHtmlAndExtractImages(); // 触发刷新事件
+          message.success('文件夹名称修改成功' + inputValue);
+          // folderLinks.value[index].name = inputValue;
+          // folderLinks.value[index].url = appendToCurrentPath(inputValue);
+          // console.log(folderLinks.value[index].url);
+          fetchHtmlAndExtractImages(); // 触发刷新事件 直接触发刷新事件是会影响当前功能的，需要知道是哪个文件，自动修改
         })
         .catch(error => {
           message.error('文件夹名称修改失败');
@@ -510,6 +570,29 @@ const editFolderName = (oldName: string) => {
     },
   });
 };
+
+function appendToCurrentPath(inputValue: string): string {
+  // 获取当前网页的完整 URL
+  const currentUrl = window.location.href;
+
+  // 创建一个 URL 对象来解析当前 URL
+  const url = new URL(currentUrl);
+
+  // 获取当前路径名称（最后一个路径段）
+  const currentPathName = url.pathname.split('/').filter(Boolean).pop();
+
+  // 将当前路径名称与 inputValue 组合
+  const newPathName = `${currentPathName}/${encodeURIComponent(inputValue)}`;
+
+  // 更新 URL 对象中的路径
+  url.pathname = url.pathname.replace(
+    new RegExp(`${currentPathName}(\/|$)`),
+    `${newPathName}/`
+  );
+
+  // 返回更新后的完整 URL
+  return url.toString();
+}
 
 // 删除文件夹
 const confirmDeleteFolder = (folderName: string) => {
@@ -598,33 +681,49 @@ const deleteSelectedImages = async () => {
 };
 
 const sortOption = ref('name-asc');
-
 // 排序功能
 const sortItems = () => {
-  if (sortOption.value === 'name-asc') {
-    imageUrls.value.sort((a, b) => a.name.localeCompare(b.name));
-    folderLinks.value.sort((a, b) => a.name.localeCompare(b.name));
-    otherFiles.value.sort((a, b) => a.name.localeCompare(b.name));
-  } else if (sortOption.value === 'name-desc') {
-    imageUrls.value.sort((a, b) => b.name.localeCompare(a.name));
-    folderLinks.value.sort((a, b) => b.name.localeCompare(a.name));
-    otherFiles.value.sort((a, b) => b.name.localeCompare(a.name));
-  } else if (sortOption.value === 'date-asc') {
-    // @ts-ignore
-    imageUrls.value.sort((a, b) => a.lastModified - b.lastModified);
-    // @ts-ignore
-    folderLinks.value.sort((a, b) => a.lastModified - b.lastModified);
-    // @ts-ignore
-    otherFiles.value.sort((a, b) => a.lastModified - b.lastModified);
-  } else if (sortOption.value === 'date-desc') {
-    // @ts-ignore
-    imageUrls.value.sort((a, b) => b.lastModified - a.lastModified);
-    // @ts-ignore
-    folderLinks.value.sort((a, b) => b.lastModified - a.lastModified);
-    // @ts-ignore
-    otherFiles.value.sort((a, b) => b.lastModified - a.lastModified);
+  if (isSortByFilesByTagMode.value) {
+    // 遍历 sortPanelData 并根据 sortOption 进行排序
+    sortPanelData.value.forEach(panel => {
+      if (sortOption.value === 'name-asc') {
+        panel.list.imageUrls.sort((a, b) => a.name.localeCompare(b.name));
+        panel.list.folderLinks.sort((a, b) => a.name.localeCompare(b.name));
+        panel.list.otherFiles.sort((a, b) => a.name.localeCompare(b.name));
+      } else if (sortOption.value === 'name-desc') {
+        panel.list.imageUrls.sort((a, b) => b.name.localeCompare(a.name));
+        panel.list.folderLinks.sort((a, b) => b.name.localeCompare(a.name));
+        panel.list.otherFiles.sort((a, b) => b.name.localeCompare(a.name));
+      } else if (sortOption.value === 'date-asc') {
+        panel.list.imageUrls.sort((a, b) => a.lastModified - b.lastModified);
+        panel.list.folderLinks.sort((a, b) => a.lastModified - b.lastModified);
+        panel.list.otherFiles.sort((a, b) => a.lastModified - b.lastModified);
+      } else if (sortOption.value === 'date-desc') {
+        panel.list.imageUrls.sort((a, b) => b.lastModified - a.lastModified);
+        panel.list.folderLinks.sort((a, b) => b.lastModified - a.lastModified);
+        panel.list.otherFiles.sort((a, b) => b.lastModified - a.lastModified);
+      }
+    });
   } else {
-    // 默认排序或其他排序逻辑
+    if (sortOption.value === 'name-asc') {
+      imageUrls.value.sort((a, b) => a.name.localeCompare(b.name));
+      folderLinks.value.sort((a, b) => a.name.localeCompare(b.name));
+      otherFiles.value.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortOption.value === 'name-desc') {
+      imageUrls.value.sort((a, b) => b.name.localeCompare(a.name));
+      folderLinks.value.sort((a, b) => b.name.localeCompare(a.name));
+      otherFiles.value.sort((a, b) => b.name.localeCompare(a.name));
+    } else if (sortOption.value === 'date-asc') {
+      imageUrls.value.sort((a, b) => a.lastModified - b.lastModified);
+      folderLinks.value.sort((a, b) => a.lastModified - b.lastModified);
+      otherFiles.value.sort((a, b) => a.lastModified - b.lastModified);
+    } else if (sortOption.value === 'date-desc') {
+      imageUrls.value.sort((a, b) => b.lastModified - a.lastModified);
+      folderLinks.value.sort((a, b) => b.lastModified - a.lastModified);
+      otherFiles.value.sort((a, b) => b.lastModified - a.lastModified);
+    } else {
+      // 默认排序或其他排序逻辑
+    }
   }
 };
 
@@ -668,6 +767,11 @@ onMounted(async () => {
   try {
     const response = await axios.get('/get-tags');
     baseTags.value = response.data.tags; // 假设服务器返回的数据是包含标签的数组
+
+    const storedValue = localStorage.getItem('isSortByFilesByTagMode');
+  if (storedValue !== null) {
+    isSortByFilesByTagMode.value = JSON.parse(storedValue);
+  }
   } catch (error) {
     console.error('Error fetching tags:', error);
   }
@@ -703,10 +807,13 @@ onMounted(async () => {
       <a-button class="a_button_class" :icon="h(DeleteOutlined)"
         v-if="(selectedImages.size > 0 || selectedFiles.size > 0) && selectedFold.size === 0"
         style="color: #ff4d4f!important" danger @click="deleteSelectedImages">批量删除</a-button>
-      <a-button class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{ isEditMode ? '取消编辑' : '文件编辑'
-        }}</a-button>
+      <a-button v-if="!isSelectMode" class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{
+        isEditMode ?
+          '取消编辑' : '文件编辑'
+      }}</a-button>
       <a-button class="a_button_class" :icon="h(DownloadOutlined)"
-        v-if="selectedImages.size > 0 || selectedFiles.size > 0" @click="downloadSelectedItems">下载选中的文件</a-button>
+        v-if="(selectedImages.size > 0 || selectedFiles.size > 0) && selectedFold.size === 0"
+        @click="downloadSelectedItems">下载选中的文件</a-button>
 
       <a-upload style="margin-right: 0px;" :before-upload="beforeUpload" :custom-request="uploadNextFile" multiple
         :show-upload-list="false" class="a_button_class">
@@ -726,8 +833,8 @@ onMounted(async () => {
         <a-select-option value="date-desc">日期升序</a-select-option>
       </a-select>
 
-      <a-button :icon="h(OrderedListOutlined)" class="a_button_class" @click="sortFilesByTag">
-        按类型分类
+      <a-button :icon="h(OrderedListOutlined)" class="a_button_class" @click="ToggleIsSortByFilesByTagMode">
+        {{ isSortByFilesByTagMode ? "取消" : "按" }}颜色分类
       </a-button>
 
       <a-dropdown trigger="click" v-if="selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0">
@@ -766,89 +873,48 @@ onMounted(async () => {
         @search="onSearch" />
     </div>
 
-    <!-- 文件夹 -->
-    <div class="folders" v-if="folderLinks.length > 0">
-      <div v-for="(folder, index) in folderLinks" :key="folder.url" class="folder-container">
-        <Checkbox v-if="isSelectMode" @change="(e: any) => handleSelectFolds(folder.url, e.target.checked, index)"
-          class="image-checkbox" :checked="selectedFold.has(folder.url)" />
-
-        <div style="display: flex; justify-content: space-between; padding: 1em;">
-          <a @click.prevent="isSelectMode ? handleSelectFolds(folder.url, !selectedFold.has(folder.url), index) : navigateToFolder(folder.name)"
-            href="#">
-            <FolderOutlined class="folder-icon" />
-            <span class="folder-name">{{ folder.name }}</span>
-          </a>
-          <div>
-            <a-button v-if="isEditMode" type="link" :icon="h(EditOutlined)" @click="editFolderName(folder.name)" />
-            <a-button v-if="isEditMode" type="link" danger :icon="h(DeleteOutlined)"
-              @click="confirmDeleteFolder(folder.name)" />
-          </div>
-        </div>
-
-        <div v-if="folder.tag?.id && folder.tag?.id !== '0'" class="image-name"
-          style="display: flex;justify-content: center;align-items: center;">
-          <span
-            :style="{ backgroundColor: folder.tag?.color, display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '8px' }"></span>
-          {{ folder.tag?.name }}
-        </div>
-      </div>
-    </div>
-
-    <div class="gallery">
-      <a-image-preview-group>
-        <div v-for="(item, index) in imageUrls" :key="item.url" class="image-wrapper"
-          @click="(isSelectMode || isEditMode) ? handleSelectImage(item.url, !selectedImages.has(item.url), index) : null">
-          <div class="image-container">
-            <Checkbox v-if="isSelectMode" @change="(e: any) => handleSelectImage(item.url, e.target.checked, index)"
-              class="image-checkbox" :checked="selectedImages.has(item.url)" />
-
-            <!-- 如果是选择模式，则显示缩略图，否则显示大图 -->
-            <a-image :src="getThumbnailUrl(item.url)" width="200px"
-              :preview="(isSelectMode || isEditMode) ? false : { src: item.url }" />
-
-            <div class="image-name">{{ item.name }}</div>
-            <div class="image-name">{{ item.lastModifiedText }}</div>
-            <div v-if="item.tag?.id && item.tag?.id !== '0'" class="image-name"
-              style="display: flex;justify-content: center;align-items: center;">
-              <span
-                :style="{ backgroundColor: item.tag?.color, display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '8px' }"></span>
-              {{ item.tag?.name }}
-            </div>
-            <div v-if="isEditMode" class="delete-button">
-              <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
-            </div>
-          </div>
-        </div>
-      </a-image-preview-group>
-    </div>
-
-    <div v-if="otherFiles.length > 0" style="text-align: left;margin-top: 30px;">其他文件</div>
-    <div class="other-files">
-      <div v-for="(file, index) in otherFiles" :key="file.url" class="file-wrapper"
-        @click="isSelectMode ? handleSelectFile(file.url, !selectedFiles.has(file.url), index) : null">
-        <div class="file-container">
-          <Checkbox v-if="isSelectMode" @change="(e: any) => handleSelectFile(file.url, e.target.checked, index)"
-            class="file-checkbox" :checked="selectedFiles.has(file.url)" />
-          <div style="display: flex; align-items: center;margin-bottom: 10px;">
-            <FileOutlined class="file-icon" />
-            <div>{{ file.fileSize }}</div>
-          </div>
-
-          <a type="link" style="color: #1677ff" :href="file.url" target="_blank">下载</a>
-          <div class="file-name">{{ file.name }}</div>
-          <div class="file-name">{{ file.lastModifiedText }}</div>
-          <div v-if="file.tag?.id && file.tag?.id !== '0'" class="file-name"
-            style="display: flex;justify-content: center;align-items: center;">
+    <template v-if="isSortByFilesByTagMode">
+      <div v-for="(panel, index) in sortPanelData" :key="panel.id" style="margin-bottom: 20px;">
+        <!-- 显示分类的颜色和名称 -->
+        <a-divider orientation="left" orientation-margin="0px" v-if="panel.id !== '0'">
+          <div style="display: flex; align-items: center;">
             <span
-              :style="{ backgroundColor: file.tag?.color, display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '8px' }"></span>
-            {{ file.tag?.name }}
+              :style="{ backgroundColor: panel.color, display: 'inline-block', width: '20px', height: '20px', borderRadius: '50%', marginRight: '8px' }"></span>
+            <h2>{{ panel.name }}</h2>
           </div>
+        </a-divider>
 
-          <div v-if="isEditMode" class="delete-button" style="top: 0px">
-            <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
-          </div>
-        </div>
+        <!-- 渲染文件夹类型 -->
+        <Folder v-if="panel.list.folderLinks.length > 0" :folderLinks="panel.list.folderLinks"
+          :isSelectMode="isSelectMode" :isEditMode="isEditMode" :selectedFold="selectedFold"
+          :handleSelectFolds="handleSelectFolds" :navigateToFolder="navigateToFolder" :editFolderName="editFolderName"
+          :confirmDeleteFolder="confirmDeleteFolder" />
+
+        <!-- 渲染图片库类型 -->
+        <Gallery v-if="panel.list.imageUrls.length > 0" :imageUrls="panel.list.imageUrls" :isSelectMode="isSelectMode"
+          :isEditMode="isEditMode" :selectedImages="selectedImages" :handleSelectImage="handleSelectImage"
+          :getThumbnailUrl="getThumbnailUrl" :confirmDeleteImage="confirmDeleteImage" />
+
+        <!-- 渲染其他文件类型 -->
+        <OtherFile v-if="panel.list.otherFiles.length > 0" :otherFiles="panel.list.otherFiles"
+          :isSelectMode="isSelectMode" :isEditMode="isEditMode" :selectedFiles="selectedFiles"
+          :handleSelectFile="handleSelectFile" :confirmDeleteFile="confirmDeleteFile" />
       </div>
-    </div>
+    </template>
+    <template v-else>
+      <!-- 文件夹类型 -->
+      <Folder :folderLinks="folderLinks" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
+        :selectedFold="selectedFold" :handleSelectFolds="handleSelectFolds" :navigateToFolder="navigateToFolder"
+        :editFolderName="editFolderName" :confirmDeleteFolder="confirmDeleteFolder" />
+
+      <!-- 图片库类型 -->
+      <Gallery :imageUrls="imageUrls" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
+        :selectedImages="selectedImages" :handleSelectImage="handleSelectImage" :getThumbnailUrl="getThumbnailUrl"
+        :confirmDeleteImage="confirmDeleteImage" />
+
+      <!-- 其他文件 -->
+      <OtherFile :otherFiles="otherFiles" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
+        :selectedFiles="selectedFiles" :handleSelectFile="handleSelectFile" :confirmDeleteFile="confirmDeleteFile" />
+    </template>
   </div>
 </template>
