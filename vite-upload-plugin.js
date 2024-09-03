@@ -218,13 +218,13 @@ export default function uploadPlugin() {
             // 0 为删除标签
             if (tag.id === "0") {
               removeAttribute(formatPath, 'tag.id');
-              removeAttribute(formatPath, 'tag.name');
-              removeAttribute(formatPath, 'tag.color');
+              // removeAttribute(formatPath, 'tag.name');
+              // removeAttribute(formatPath, 'tag.color');
             } else {
               // 使用 fs-xattr 设置每个文件的扩展属性
               await setAttribute(formatPath, 'tag.id', tag.id);
-              await setAttribute(formatPath, 'tag.name', tag.name);
-              await setAttribute(formatPath, 'tag.color', tag.color);
+              // await setAttribute(formatPath, 'tag.name', tag.name);
+              // await setAttribute(formatPath, 'tag.color', tag.color);
             }
           }
 
@@ -262,19 +262,21 @@ export default function uploadPlugin() {
 
 
             const tagId = getAttributeSync(formatPath, 'tag.id').toString();
-            const tagName = getAttributeSync(formatPath, 'tag.name').toString();
-            const tagColor = getAttributeSync(formatPath, 'tag.color').toString();
+            // const tagName = getAttributeSync(formatPath, 'tag.name').toString();
+            // const tagColor = getAttributeSync(formatPath, 'tag.color').toString();
 
-            if (tagsData.find(tag => tag.id === tagId)) {
+            const orginTagData = tagsData.find(tag => tag.id === tagId);
+
+            if (orginTagData) {
               return {
-                id: tagId,
-                name: tagName,
-                color: tagColor,
+                id: orginTagData.id,
+                name: orginTagData.name,
+                color: orginTagData.color,
               };
             } else {
               removeAttribute(formatPath, 'tag.id');
-              removeAttribute(formatPath, 'tag.name');
-              removeAttribute(formatPath, 'tag.color');
+              // removeAttribute(formatPath, 'tag.name');
+              // removeAttribute(formatPath, 'tag.color');
 
               return {};
             }
