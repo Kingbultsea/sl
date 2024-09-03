@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, h, computed, onMounted } from 'vue';
+import { ref, watch, h, computed, onMounted, nextTick } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
 import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, FileOutlined, DownloadOutlined, TagOutlined, OrderedListOutlined } from '@ant-design/icons-vue';
@@ -35,29 +35,28 @@ watch(isSortByFilesByTagMode, (newValue) => {
 
 const sortFilesByTag = () => {
   if (!isSortByFilesByTagMode.value) {
+    console.log("按照颜色排序");
     return;
   }
   const tagMap = new Map<string, { id: string, name: string, color: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }>();
 
   const processFile = (file: TypeFile, type: keyof typeof sortPanelData.value[0]['list']) => {
-    if (file.tag) {
-      const { id = "0", name, color } = file.tag;
+    const { id = "0", name = "", color = "" } = file.tag || {};
 
-      if (!tagMap.has(id)) {
-        tagMap.set(id, {
-          id,
-          name,
-          color,
-          list: { imageUrls: [], folderLinks: [], otherFiles: [] }
-        });
-      }
-
-      const tagEntry = tagMap.get(id);
-      if (tagEntry) {
-        tagEntry.list[type].push(file);
-      }
+    if (!tagMap.has(id)) {
+      tagMap.set(id, {
+        id,
+        name,
+        color,
+        list: { imageUrls: [], folderLinks: [], otherFiles: [] }
+      });
     }
-  };
+
+    const tagEntry = tagMap.get(id);
+    if (tagEntry) {
+      tagEntry.list[type].push(file);
+    }
+  }
 
   // 处理 imageUrls
   imageUrls.value.forEach(file => processFile(file, 'imageUrls'));
@@ -318,7 +317,14 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       if (fileName!.endsWith('/')) {
         if (fileName !== '../') {
           fileName = fileName?.replace(/\/$/, ''); // 去除末尾的斜杠
-          folderLinks.value.push({ url: curUrl + fileName, name: fileName!, lastModified, fileSize, lastModifiedText }); // 为什么要加上 "/" +  ？
+          let url = ""
+          // 这里可选 暂时没有定位到bug
+          if (fileName?.startsWith('/') || curUrl?.endsWith('/')) {
+            url = curUrl + fileName
+          } else {
+            url = curUrl + "/" + fileName
+          }
+          folderLinks.value.push({ url, name: fileName!, lastModified, fileSize, lastModifiedText }); // 为什么要加上 "/" +  ？
         }
       } else {
         const extension = fileName!.split('.').pop()?.toLowerCase();
@@ -333,6 +339,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     // todo 合并查询
     if (folderLinks.value.length > 0) {
       fetchTags(folderLinks.value);
+      console.log(folderLinks.value);
     }
     if (otherFiles.value.length > 0) {
       fetchTags(otherFiles.value);
@@ -351,9 +358,12 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
           timeoutId = setTimeout(fn(), 300);
         });
       } else {
-        // 完成
-        sortFilesByTag();
-        sortItems(); // 加载数据后进行排序
+        // 完成  isSortByFilesByTagMode 都还没更新，就已经去触发这个了，所以不会渲染
+
+        setTimeout(() => {
+          sortFilesByTag();
+          sortItems(); // 加载数据后进行排序
+        }, 20);
         // clearInterval(intervalId); // 所有数据推送完成后清除 interval
       }
       return fn;
@@ -769,9 +779,9 @@ onMounted(async () => {
     baseTags.value = response.data.tags; // 假设服务器返回的数据是包含标签的数组
 
     const storedValue = localStorage.getItem('isSortByFilesByTagMode');
-  if (storedValue !== null) {
-    isSortByFilesByTagMode.value = JSON.parse(storedValue);
-  }
+    if (storedValue !== null) {
+      isSortByFilesByTagMode.value = JSON.parse(storedValue);
+    }
   } catch (error) {
     console.error('Error fetching tags:', error);
   }
@@ -872,8 +882,8 @@ onMounted(async () => {
       <a-input-search v-model:value="searchValue" placeholder="（仅支持全局搜索）输入搜索文件目录或名称" style="width: 500px"
         @search="onSearch" />
     </div>
-
-    <template v-if="isSortByFilesByTagMode">
+    {{ sortPanelData.length }}  {{ isSortByFilesByTagMode }}
+    <template v-if="isSortByFilesByTagMode" key="0">
       <div v-for="(panel, index) in sortPanelData" :key="panel.id" style="margin-bottom: 20px;">
         <!-- 显示分类的颜色和名称 -->
         <a-divider orientation="left" orientation-margin="0px" v-if="panel.id !== '0'">
@@ -901,7 +911,7 @@ onMounted(async () => {
           :handleSelectFile="handleSelectFile" :confirmDeleteFile="confirmDeleteFile" />
       </div>
     </template>
-    <template v-else>
+    <template key="1" v-else>
       <!-- 文件夹类型 -->
       <Folder :folderLinks="folderLinks" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
         :selectedFold="selectedFold" :handleSelectFolds="handleSelectFolds" :navigateToFolder="navigateToFolder"
