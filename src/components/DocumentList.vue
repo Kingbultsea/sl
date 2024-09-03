@@ -882,7 +882,6 @@ onMounted(async () => {
       <a-input-search v-model:value="searchValue" placeholder="（仅支持全局搜索）输入搜索文件目录或名称" style="width: 500px"
         @search="onSearch" />
     </div>
-    {{ sortPanelData.length }}  {{ isSortByFilesByTagMode }}
     <template v-if="isSortByFilesByTagMode" key="0">
       <div v-for="(panel, index) in sortPanelData" :key="panel.id" style="margin-bottom: 20px;">
         <!-- 显示分类的颜色和名称 -->
