@@ -73,7 +73,7 @@ const sortFilesByTag = () => {
   // 将结果从小到大排序
   sortPanelData.value = Array.from(tagMap.values()).sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
 
-  console.log(sortPanelData.value);
+  console.log(sortPanelData.value, 'six');
 };
 
 const ToggleIsSortByFilesByTagMode = () => {

@@ -241,7 +241,6 @@ export default function uploadPlugin() {
             }
 
             const formatPath = path.join(directory, filePath);
-            console.log(formatPath);
 
             // 0 为删除标签
             if (tag.id === "0") {
@@ -251,8 +250,7 @@ export default function uploadPlugin() {
             } else {
               // 使用 fs-xattr 设置每个文件的扩展属性
               await setAttribute(formatPath, 'tag.id', tag.id);
-              // await setAttribute(formatPath, 'tag.name', tag.name);
-              // await setAttribute(formatPath, 'tag.color', tag.color);
+              console.log("设置标签:", formatPath, tag.id);
             }
           }
 
@@ -289,9 +287,24 @@ export default function uploadPlugin() {
             // console.log(formatPath);
 
 
-            const tagId = getAttributeSync(formatPath, 'tag.id').toString();
+            let tagId = "0"
             // const tagName = getAttributeSync(formatPath, 'tag.name').toString();
-            const tagColor = getAttributeSync(formatPath, 'tag.color').toString();
+
+            let tagColor = ""
+
+            try {
+              tagColor = getAttributeSync(formatPath, 'tag.color').toString();
+            } catch {
+
+            }
+
+            try {
+              tagId = getAttributeSync(formatPath, 'tag.id').toString();
+            } catch {
+
+            }
+
+            console.log(filePath, tagId, tagColor);
 
             const orginTagData = tagsData.find(tag => tag.id === tagId);
 
