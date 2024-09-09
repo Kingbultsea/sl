@@ -41,12 +41,6 @@ const props = defineProps<{
 
                     <div class="image-name">{{ item.name }}</div>
                     <div class="image-name">{{ item.lastModifiedText }}</div>
-                    <div v-if="item.tag?.id && item.tag?.id !== '0'" class="image-name"
-                        style="display: flex;justify-content: center;align-items: center;" :style="{  background: item.tag?.color }">
-                        <!-- <span
-                            :style="{ backgroundColor: item.tag?.color, display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '8px' }"></span> -->
-                        {{ item.tag?.name }}
-                    </div>
                     <div v-if="isEditMode" class="delete-button">
                         <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
                     </div>

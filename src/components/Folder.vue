@@ -43,13 +43,6 @@ const props = defineProps<{
                         @click="confirmDeleteFolder(folder.name)" />
                 </div>
             </div>
-
-            <div v-if="folder.tag?.id && folder.tag?.id !== '0'" class="image-name"
-                style="display: flex;justify-content: center;align-items: center;" :style="{  background: folder.tag?.color }">
-                <!-- <span
-                    :style="{ backgroundColor: folder.tag?.color, display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '8px' }"></span> -->
-                {{ folder.tag?.name }}
-            </div>
         </div>
     </div>
 </template>

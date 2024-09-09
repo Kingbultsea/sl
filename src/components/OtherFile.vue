@@ -43,12 +43,6 @@ const props = defineProps<{
                     <a type="link" style="color: #1677ff" :href="file.url" target="_blank">下载</a>
                     <div class="file-name">{{ file.name }}</div>
                     <div class="file-name">{{ file.lastModifiedText }}</div>
-                    <div v-if="file.tag?.id && file.tag?.id !== '0'" class="file-name"
-                        style="display: flex;justify-content: center;align-items: center;"
-                        :style="{ background: file.tag?.color }">
-                       
-                        {{ file.tag?.name }}
-                    </div>
 
                     <div v-if="isEditMode" class="delete-button" style="top: 0px">
                         <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />

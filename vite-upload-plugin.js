@@ -149,7 +149,7 @@ export default function uploadPlugin() {
       // 创建标签
       app.post('/create-tag', (req, res) => {
         const newTag = req.body.tag;
-        if (!newTag || !newTag.id || !newTag.name || !newTag.color) {
+        if (!newTag || !newTag.id || !newTag.name) {
           return res.status(400).send('Invalid tag data');
         }
 
@@ -198,6 +198,34 @@ export default function uploadPlugin() {
         res.json(tagsData);
       });
 
+      // 设置文件显示的颜色
+      app.post('/set-file-color', async (req, res) => {
+        const { files } = req.body; // files 是一个包含多个文件路径和标签的数组
+
+        if (!Array.isArray(files) || files.length === 0) {
+          return res.status(400).send('Invalid files data');
+        }
+
+        console.log("设置标签颜色");
+
+        try {
+          for (const { path: filePath, tag } of files) {
+            if (!filePath || !tag.color) {
+              return res.status(400).send(`Invalid tag data or file path for file: ${filePath}`);
+            }
+
+            const formatPath = path.join(directory, filePath);
+
+            await setAttribute(formatPath, 'tag.color', tag.color);
+          }
+
+          res.send('Tags Color set successfully for all files');
+        } catch (err) {
+          console.error('Error setting tags:', err);
+          res.status(500).send('Failed to set tags');
+        }
+      })
+
       // 设置标签，利用setAttribute，数值需要传递，对应tags.json 如果id为0 则为删除标签
       app.post('/set-tags', async (req, res) => {
         const { files } = req.body; // files 是一个包含多个文件路径和标签的数组
@@ -208,7 +236,7 @@ export default function uploadPlugin() {
 
         try {
           for (const { path: filePath, tag } of files) {
-            if (!filePath || !tag || !tag.id || !tag.name || !tag.color) {
+            if (!filePath || !tag || !tag.id) {
               return res.status(400).send(`Invalid tag data or file path for file: ${filePath}`);
             }
 
@@ -263,7 +291,7 @@ export default function uploadPlugin() {
 
             const tagId = getAttributeSync(formatPath, 'tag.id').toString();
             // const tagName = getAttributeSync(formatPath, 'tag.name').toString();
-            // const tagColor = getAttributeSync(formatPath, 'tag.color').toString();
+            const tagColor = getAttributeSync(formatPath, 'tag.color').toString();
 
             const orginTagData = tagsData.find(tag => tag.id === tagId);
 
@@ -271,7 +299,7 @@ export default function uploadPlugin() {
               return {
                 id: orginTagData.id,
                 name: orginTagData.name,
-                color: orginTagData.color,
+                color: tagColor, // orginTagData.color,
               };
             } else {
               removeAttribute(formatPath, 'tag.id');

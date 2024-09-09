@@ -2,7 +2,7 @@
 import { ref, watch, h, computed, onMounted, nextTick } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
-import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, FileOutlined, DownloadOutlined, TagOutlined, OrderedListOutlined } from '@ant-design/icons-vue';
+import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, BgColorsOutlined, DownloadOutlined, TagOutlined, OrderedListOutlined } from '@ant-design/icons-vue';
 import { Checkbox, Modal, message } from 'ant-design-vue';
 // @ts-ignore
 import { saveAs } from 'file-saver';
@@ -25,9 +25,10 @@ const props = defineProps<{ isDarkMode: boolean }>();
 
 // todo 按照目前的现有的结构，再弄一个上层父级的分类
 // { { id: 标签id, name: "标签名称", color: "标签颜色", list: { imageUrls: [], folderLinks: [], otherFiles: [] }  } }
-const sortPanelData = ref<{ id: string, name: string, color: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }[]>([]);
+const sortPanelData = ref<{ id: string, name: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }[]>([]);
 
-const isSortByFilesByTagMode = ref(JSON.parse(localStorage.getItem('isSortByFilesByTagMode') || 'false'));
+// 直接改为false 不需要颜色 转换为 分类
+const isSortByFilesByTagMode = ref(true); // ref(JSON.parse(localStorage.getItem('isSortByFilesByTagMode') || 'false'));
 
 watch(isSortByFilesByTagMode, (newValue) => {
   localStorage.setItem('isSortByFilesByTagMode', JSON.stringify(newValue));
@@ -38,7 +39,7 @@ const sortFilesByTag = () => {
     console.log("按照颜色排序");
     return;
   }
-  const tagMap = new Map<string, { id: string, name: string, color: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }>();
+  const tagMap = new Map<string, { id: string, name: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }>();
 
   const processFile = (file: TypeFile, type: keyof typeof sortPanelData.value[0]['list']) => {
     const { id = "0", name = "", color = "" } = file.tag || {};
@@ -47,7 +48,6 @@ const sortFilesByTag = () => {
       tagMap.set(id, {
         id,
         name,
-        color,
         list: { imageUrls: [], folderLinks: [], otherFiles: [] }
       });
     }
@@ -85,12 +85,15 @@ const ToggleIsSortByFilesByTagMode = () => {
 }
 
 type TypeTagColor = { color: string, name: string, id: string }
+const baseColors = ref<string[]>(["#ff6b57", "#ff9100", "#ffda00", "#20ce0a", "#508dfe", "#a260ff"]);
 const baseTags = ref<TypeTagColor[]>([]);
 const tagSearchValue = ref('');
 const selectedColor = ref('');
 // 计算属性，动态过滤tags
 const filteredTags = computed(() => {
-  return baseTags.value.filter(tag => tag.name.toLowerCase().includes(tagSearchValue.value.toLowerCase()));
+  return baseTags.value
+    .filter(tag => tag.name.toLowerCase().includes(tagSearchValue.value.toLowerCase()))
+    .sort((a, b) => a.id === '0' ? 1 : (b.id === '0' ? -1 : 0));
 });
 const selectColor = (color: string) => {
   selectedColor.value = color;
@@ -100,13 +103,10 @@ const createTag = async () => {
   if (filteredTags.value.length !== 0) {
     return;
   }
-  if (!selectedColor.value) {
-    alert('请选择一个标签颜色');
-    return;
-  }
+
   if (tagSearchValue.value.trim()) {
     const newTag = {
-      color: selectedColor.value,
+      color: "",
       name: tagSearchValue.value.trim(),
       id: Date.now().toString() // 生成唯一的ID
     };
@@ -128,6 +128,28 @@ const createTag = async () => {
     }
   }
 };
+
+// 
+const setFileColor = async (color: string) => {
+  const filesToTag = [...selectedFiles.value, ...selectedImages.value, ...selectedFold.value].map(filePath => ({
+    path: filePath.replace(/https?:\/\/[^\/:]+(:\d+)?\//, ''),  // 移除URL前缀，匹配带端口号的路径
+    tag: {
+      color
+    }
+  }));
+
+  try {
+    await axios.post('/set-file-color', { files: filesToTag });
+    console.log('Tags set successfully for selected files');
+    message.success("设置成功");
+
+    fetchHtmlAndExtractImages();
+
+    toggleSelectMode();
+  } catch (error) {
+    console.error('Error setting tags:', error);
+  }
+}
 
 // 设置标签
 const selectTag = async (id: string) => {
@@ -841,9 +863,9 @@ onMounted(async () => {
         <a-select-option value="date-desc">日期升序</a-select-option>
       </a-select>
 
-      <a-button :icon="h(OrderedListOutlined)" class="a_button_class" @click="ToggleIsSortByFilesByTagMode">
+      <!-- <a-button :icon="h(OrderedListOutlined)" class="a_button_class" @click="ToggleIsSortByFilesByTagMode">
         {{ isSortByFilesByTagMode ? "取消" : "按" }}颜色分类
-      </a-button>
+      </a-button> -->
 
       <a-dropdown trigger="click" v-if="selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0">
         <template #overlay>
@@ -851,27 +873,42 @@ onMounted(async () => {
             <a-input v-model:value="tagSearchValue" placeholder="创建或搜索标签" @keydown.enter="createTag" @click.stop
               style="width: 300px; margin-bottom: 14px;" />
             <div v-if="filteredTags.length > 0">
-              <div v-for="tag in filteredTags" :key="tag.id" @click="selectTag(tag.id)"
-                style="display: flex; align-items: center; margin-bottom: 4px; cursor: pointer;">
-                <span
-                  :style="{ backgroundColor: tag.color, display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '8px' }"></span>
+              <div v-for="tag in filteredTags" :key="tag.id" @click="selectTag(tag.id)" :style="{
+                display: 'flex',
+                alignItems: 'center',
+                marginBottom: '4px',
+                cursor: 'pointer',
+                color: tag.id === '0' ? 'red' : ''
+              }">
                 {{ tag.name }}
               </div>
             </div>
             <div v-else>
               创建新标签 "{{ tagSearchValue }}"
-              <div style="font-size: 12px; color: #0000004f">(在输入框中按回车键即可创建，点击下方选择标签颜色)</div>
-              <!-- 选择标签的颜色 -->
-              <div style="display: flex; align-items: center; margin-top: 8px;">
-                <div @click.stop v-for="tag in baseTags" :key="tag.id" @click="selectColor(tag.color)"
-                  :style="{ backgroundColor: tag.color, display: 'inline-block', width: '20px', height: '20px', borderRadius: '50%', marginRight: '8px', cursor: 'pointer', border: selectedColor === tag.color ? '2px solid rgb(0 0 0 / 49%)' : 'none' }">
-                </div>
-              </div>
+              <div style="font-size: 12px; color: #0000004f;">(在输入框中按回车键即可创建)</div>
             </div>
           </div>
         </template>
         <a-button class="a_button_class" :icon="h(TagOutlined)">
           编辑标签
+        </a-button>
+      </a-dropdown>
+
+      <!-- 设置颜色 -->
+      <a-dropdown trigger="click" v-if="selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0">
+        <template #overlay>
+          <div style="padding: 16px; background: white; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
+            <div>
+              <div v-for="color in baseColors" :key="color" @click="setFileColor(color)"
+                style="display: flex; align-items: center; margin-bottom: 4px; cursor: pointer;">
+                <span
+                  :style="{ backgroundColor: color, display: 'inline-block', width: '100px', height: '12px', marginRight: '8px', marginBottom: '12px' }"></span>
+              </div>
+            </div>
+          </div>
+        </template>
+        <a-button class="a_button_class" :icon="h(BgColorsOutlined)">
+          添加颜色
         </a-button>
       </a-dropdown>
     </div>
@@ -885,8 +922,6 @@ onMounted(async () => {
         <!-- 显示分类的颜色和名称 -->
         <a-divider orientation="left" orientation-margin="0px" v-if="panel.id !== '0'">
           <div style="display: flex; align-items: center;">
-            <span
-              :style="{ backgroundColor: panel.color, display: 'inline-block', width: '20px', height: '20px', borderRadius: '50%', marginRight: '8px' }"></span>
             <h2>{{ panel.name }}</h2>
           </div>
         </a-divider>

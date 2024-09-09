@@ -1,38 +1,11 @@
 {
   "tags": [
     {
-      "color": "#ff6b57",
-      "name": "Red",
+      "name": "重要文件",
       "id": "1"
     },
     {
-      "color": "#ff9100",
-      "name": "Orange",
-      "id": "2"
-    },
-    {
-      "color": "#ffda00",
-      "name": "Yellow",
-      "id": "3"
-    },
-    {
-      "color": "#20ce0a",
-      "name": "Green",
-      "id": "4"
-    },
-    {
-      "color": "#508dfe",
-      "name": "Blue",
-      "id": "5"
-    },
-    {
-      "color": "#a260ff",
-      "name": "Purple",
-      "id": "6"
-    },
-    {
-      "color": "#ff910000",
-      "name": "删除标签",
+      "name": "去除所选文件/文件夹的标签",
       "id": "0"
     }
   ]
