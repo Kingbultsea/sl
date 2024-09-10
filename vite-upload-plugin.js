@@ -290,7 +290,7 @@ export default function uploadPlugin() {
             let tagId = "0"
             // const tagName = getAttributeSync(formatPath, 'tag.name').toString();
 
-            let tagColor = ""
+            let tagColor = "#ffffff"
 
             try {
               tagColor = getAttributeSync(formatPath, 'tag.color').toString();
@@ -304,7 +304,7 @@ export default function uploadPlugin() {
 
             }
 
-            console.log(filePath, tagId, tagColor);
+            console.log("文件标签获取：", filePath, tagId, tagColor);
 
             const orginTagData = tagsData.find(tag => tag.id === tagId);
 
