@@ -85,7 +85,7 @@ const ToggleIsSortByFilesByTagMode = () => {
 }
 
 type TypeTagColor = { color: string, name: string, id: string }
-const baseColors = ref<string[]>(["#ff6b57", "#ff9100", "#ffda00", "#20ce0a", "#508dfe", "#a260ff"]);
+const baseColors = ref<string[]>(["#ff6b57", "#ff9100", "#ffda00", "#20ce0a", "#508dfe", "#a260ff", "#ffffff"]);
 const baseTags = ref<TypeTagColor[]>([]);
 const tagSearchValue = ref('');
 const selectedColor = ref('');
@@ -902,7 +902,9 @@ onMounted(async () => {
               <div v-for="color in baseColors" :key="color" @click="setFileColor(color)"
                 style="display: flex; align-items: center; margin-bottom: 4px; cursor: pointer;">
                 <span
-                  :style="{ backgroundColor: color, display: 'inline-block', width: '100px', height: '12px', marginRight: '8px', marginBottom: '12px' }"></span>
+                  :style="{ backgroundColor: color, display: 'inline-block', width: '100px', height: '12px', marginRight: '8px', marginBottom: '12px' }">
+                  <span v-if="color === '#ffffff'" :style="{ color: 'red' }">去除颜色</span>
+                </span>
               </div>
             </div>
           </div>
