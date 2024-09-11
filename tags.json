@@ -7,6 +7,25 @@
     {
       "name": "去除所选文件/文件夹的标签",
       "id": "0"
+    },
+    {
+      "color": "",
+      "name": "重要文件2",
+      "id": "1725940353359"
+    }
+  ],
+  "lock": [
+    {
+      "files": [
+        "/protected"
+      ],
+      "password": "password"
+    },
+    {
+      "files": [
+        "/pp2"
+      ],
+      "password": "password2"
     }
   ]
 }

@@ -315,9 +315,32 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     clearInterval(timeoutId);
   }
 
+  let username = 'admin';
+  let password = '';
+
+  // 将用户名和密码进行 Base64 编码
+  const token = btoa(`${username}:${password}`);
+
   try {
     const curUrl = `${IMAGE_BASE_URL}${folderPath.value}`;
-    const response = await axios.get(curUrl);
+
+    await fetchEncryptedFilesPromise;
+
+    if (encryptedFiles.value.includes(folderPath.value.toString())) {
+      console.log("该文件夹需要加密");
+      password = prompt("请输入密码") || "";
+
+      console.log('在浏览器上获取到的密码', password);
+    } else {
+      console.log("该文件夹不需要加密:", folderPath.value.toString());
+    }
+
+    const response = await axios.get(curUrl, password ? {
+      headers: {
+        'Authorization': `Basic ${token}` // 设置 Authorization 头
+      }
+    } : {});
+
     const html = response.data;
 
     const parser = new DOMParser();
@@ -757,6 +780,53 @@ const sortItems = () => {
   }
 };
 
+// 设置密码
+const setPassword = async (filePath: string, password: string) => {
+  try {
+    const response = await axios.post('/set-password', {
+      filePath,
+      password,
+    });
+    alert('Password set successfully');
+  } catch (error) {
+    console.error('Error setting password:', error);
+    alert('Failed to set password');
+  }
+};
+
+// 移除密码
+const removePassword = async (filePath: string) => {
+  try {
+    const response = await axios.post('/remove-password', {
+      filePath,
+    });
+    alert('Password removed successfully');
+  } catch (error) {
+    console.error('Error removing password:', error);
+    alert('Failed to remove password');
+  }
+};
+
+// 存储加密文件路径列表
+const encryptedFiles = ref<string[]>([]);
+let fetchEncryptedFilesPromiseResolve: Function | null = null;
+const fetchEncryptedFilesPromise = new Promise((resolve) => {
+  fetchEncryptedFilesPromiseResolve = resolve; // 保存 resolve 函数引用
+});
+
+// 获取所有加密文件
+const getEncryptedFiles = async () => {
+  try {
+    const response = await axios.get('/get-encrypted-files');
+    console.log(response.data, '所有加密文件列表');
+    encryptedFiles.value = response.data;
+    fetchEncryptedFilesPromiseResolve && fetchEncryptedFilesPromiseResolve();
+  } catch (error) {
+    console.error('Error getting encrypted files:', error);
+    alert('Failed to get encrypted files');
+  }
+};
+
 // 获取缩略图URL的方法
 const getThumbnailUrl = (url: string): string => {
   // 解析URL
@@ -777,6 +847,7 @@ watch(() => route.params.folderPath, (newPath) => {
     newPath = newPath.join('/');
   }
   folderPath.value = '/' + newPath;
+
   fetchHtmlAndExtractImages();
 });
 
@@ -797,6 +868,9 @@ onMounted(async () => {
   try {
     const response = await axios.get('/get-tags');
     baseTags.value = response.data.tags; // 假设服务器返回的数据是包含标签的数组
+
+    // todo
+    getEncryptedFiles();
 
     // const storedValue = localStorage.getItem('isSortByFilesByTagMode');
     // if (storedValue !== null) {
@@ -873,7 +947,7 @@ onMounted(async () => {
             <a-input v-model:value="tagSearchValue" placeholder="创建或搜索标签" @keydown.enter="createTag" @click.stop
               style="width: 300px; margin-bottom: 14px;" />
             <div v-if="filteredTags.length > 0">
-              <div v-for="tag in filteredTags" :key="tag.id" @click="selectTag(tag.id)" :style="{
+              <div v-for="tag in filteredTags" :key="tag.id" class="element-test" @click="selectTag(tag.id)" :style="{
                 display: 'flex',
                 alignItems: 'center',
                 marginBottom: '4px',
@@ -900,7 +974,7 @@ onMounted(async () => {
           <div style="padding: 16px; background: white; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
             <div>
               <div v-for="color in baseColors" :key="color" @click="setFileColor(color)"
-                style="display: flex; align-items: center; margin-bottom: 4px; cursor: pointer;">
+                style="display: flex; align-items: center;  cursor: pointer; align-items: center;">
                 <span
                   :style="{ backgroundColor: color, display: 'inline-block', width: '100px', height: '12px', marginRight: '8px', marginBottom: '12px' }">
                   <span v-if="color === '#ffffff'" :style="{ color: 'red' }">去除颜色</span>

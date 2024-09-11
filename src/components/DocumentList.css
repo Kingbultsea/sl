@@ -175,3 +175,17 @@
     box-sizing: border-box;
   }
 }
+
+.element-test {
+  background-color: inherit;
+  /* 初始背景色 */
+  transition: background-color 0.3s ease;
+  /* 添加过渡效果 */
+  padding: 2px;
+}
+
+/* 当鼠标悬停在元素上时，改变背景颜色为灰色 */
+.element-test:hover {
+  background-color: #e0e0e0;
+  /* 鼠标悬停时的灰色背景 */
+}

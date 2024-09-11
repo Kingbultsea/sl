@@ -6,11 +6,12 @@ import fg from 'fast-glob';
 import fs from 'fs';
 import "./http-server";
 import { setAttribute, getAttributeSync, removeAttribute } from 'fs-xattr'
+import { setPassword, removePassword, getEncryptedFiles } from './file-password.js';
 
 const __dirname = path.resolve(); // 计算 __dirname
 const directory = path.join(__dirname, './images');
 const maxBuffer = 1024 * 1024 * 300; // 设置缓冲区大小为 300MB
-const tagsFilePath = path.join(__dirname, './tags.json');
+export const tagsFilePath = path.join(__dirname, './tags.json');
 
 // 定义图片类型的扩展名
 const imageExtensions = ['.jpeg', '.jpg', '.png', '.gif', '.webp'];
@@ -62,22 +63,8 @@ const storage = multer.diskStorage({
   }
 });
 
-// 文件过滤功能，只接受图片类型的文件
-const fileFilter = (req, file, cb) => {
-  const filetypes = /jpeg|jpg|png|gif/;
-  const mimetype = filetypes.test(file.mimetype);
-  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Only images are allowed'));
-  }
-};
-
 const upload = multer({
-  storage: storage,
-  // fileFilter: fileFilter
+  storage: storage
 });
 
 export default function uploadPlugin() {
@@ -330,6 +317,51 @@ export default function uploadPlugin() {
         res.json(results);
       });
 
+      // 设置文件的密码
+      app.post('/set-password', (req, res) => {
+        const { filePath, password } = req.body;
+
+        if (!filePath || !password) {
+          return res.status(400).send('File path and password are required');
+        }
+
+        try {
+          setPassword(filePath, password);
+          res.send('Password set successfully');
+        } catch (err) {
+          console.error('Error setting password:', err.message);
+          res.status(500).send('Failed to set password');
+        }
+      });
+
+      // 去除文件密码
+      app.post('/remove-password', (req, res) => {
+        const { filePath } = req.body;
+
+        if (!filePath) {
+          return res.status(400).send('File path is required');
+        }
+
+        try {
+          removePassword(filePath);
+          res.send('Password removed successfully');
+        } catch (err) {
+          console.error('Error removing password:', err.message);
+          res.status(500).send('Failed to remove password');
+        }
+      });
+
+      // 获取所有被加密的文件
+      app.get('/get-encrypted-files', (req, res) => {
+        try {
+          const encryptedFiles = getEncryptedFiles();
+          res.json(encryptedFiles);
+        } catch (err) {
+          console.error('Error getting encrypted files:', err.message);
+          res.status(500).send('Failed to get encrypted files');
+        }
+      });
+
 
       // 删除文件夹处理
       app.post('/delete-folder', (req, res) => {
@@ -449,6 +481,8 @@ export default function uploadPlugin() {
           res.status(500).send('Error searching files');
         }
       });
+
+      // 文件加密处理 （可以通过标签的方式去标记， 现在需要处理的问题是，http-server 没有真正的加密）
 
       server.middlewares.use(app);
     }

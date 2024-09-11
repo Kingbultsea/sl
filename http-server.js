@@ -5,71 +5,154 @@ import ip from 'ip';
 import path from 'path';
 import sharp from 'sharp';
 import fs from 'fs';
-import { getAttributeSync } from 'fs-xattr'
+import net from 'net';
+import auth from 'http-auth'; // 添加 http-auth 依赖
+import { getAttributeSync } from 'fs-xattr';
+
+// 读取并解析 tags.json 文件
+const tags = JSON.parse(fs.readFileSync('./tags.json', 'utf8'));
+
+const corsHeader = {
+  'Access-Control-Allow-Origin': `http://${ip.address()}:3000`,
+  'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization',
+  'Access-Control-Allow-Credentials': 'true',
+}
 
 // 创建http-server实例，根目录设置为 ./images
 const server = httpServer.createServer({
   root: './images',
   robots: true,
-  headers: {
-    'Access-Control-Allow-Origin': `http://${ip.address()}:3000`,
-    'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept',
-    'Access-Control-Allow-Credentials': 'true',
-  },
+  headers: corsHeader,
   cache: -1 // 设置缓存为-1以实现`-c-1`效果
   // cache: 3600 // 这里设置为1小时的缓存时间，和上面的 Cache-Control 对应
 });
 
+// 判断路径是否为文件夹
+const isDirectory = (dirPath) => {
+  try {
+    // 将 ./images 和传入的路径合并
+    const normalizedPath = path.join('./images', dirPath);
+
+    const stats = fs.statSync(normalizedPath);
+    return stats.isDirectory(); // 如果是文件夹则返回 true
+  } catch (err) {
+    console.error(`Error checking path: ${err.message}`);
+    return false; // 如果路径不存在或其他错误，返回 false
+  }
+};
+
+// 检查文件或文件夹是否受保护
+const isProtected = (pathname) => {
+  const { lock } = tags;
+  for (const entry of lock) {
+    // 检查是否是受保护的文件
+    if (entry.files.includes(pathname)) {
+      return entry.password;
+    }
+
+    console.log('查看查询的pathname', pathname, isDirectory(pathname), pathname.startsWith(entry.files), entry.files);
+
+    // 检查是否是受保护的文件夹
+    if (isDirectory(pathname) && pathname.startsWith(entry.files)) {
+      return entry.password;
+    }
+  }
+  return null;
+};
+
+const getIp = (ip) => {
+  // 检查是否为 IPv6 映射的 IPv4 地址
+  if (net.isIPv4(ip)) {
+    console.log('Client IP (IPv4):', ip);
+  } else if (net.isIPv6(ip) && ip.includes('::ffff:')) {
+    ip = ip.split('::ffff:')[1]; // 提取 IPv4 部分
+    console.log('Client IP (mapped IPv4):', ip);
+  } else {
+    console.log('Client IP (IPv6):', ip);
+  }
+
+  return ip;
+};
+
+// 创建普通的 HTTP 服务器
 const protectedServer = http.createServer((req, res) => {
+  let clientIp = getIp(req.headers['x-forwarded-for'] || req.connection.remoteAddress);
+
+  console.log('Client IP:', clientIp); // 输出请求方的 IP 地址
+
   if (req.method === 'OPTIONS') {
-    res.writeHead(200, {
-      'Access-Control-Allow-Origin': `http://${ip.address()}:3000`,
-      'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept',
-      'Access-Control-Allow-Credentials': 'true'
-    });
+    res.writeHead(200, corsHeader);
     res.end();
     return;
   }
 
   const parsedUrl = url.parse(req.url, true);
   const isThumbnail = parsedUrl.query.thumbnail === 'true'; // 通过查询参数判断是否需要缩略图
+  const password = isProtected(parsedUrl.pathname);
 
-  // 如果提供了 image 参数，并且 thumbnail=true，则生成缩略图
+  console.log(parsedUrl.pathname);
+
+  // todo 根据tags.json的lock，如果是文件夹，即末尾是/，则用startsWith，如果是文件，则直接判断是不是同一个文件路径，
+  // 如果判断到是，则需要验证，而且password需要一致
+  if (password) {
+    console.log("进入验证阶段");
+
+    const basicAuth = auth.basic({
+      realm: "Protected Area"
+    }, (_, enteredPassword, callback) => {
+      const authHeader = req.headers.authorization;
+
+      // 手动解析 Base64 编码的 Authorization 头部
+      const base64Credentials = authHeader.split(' ')[1];
+      const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+      const [username, password] = credentials.split(':');
+
+      console.log("用户输入的密码", enteredPassword, "tags上的密码: ", password, authHeader);
+
+      // 验证输入的密码是否正确
+      callback(enteredPassword === password);
+    });
+
+    // 需要进行身份验证
+    basicAuth.check((reqAuth, resAuth) => {
+      if (!reqAuth.headers.authorization) {
+        console.log("没有验证头")
+        // 如果没有提供验证信息，返回401并要求提供身份验证
+        resAuth.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Protected"' });
+        resAuth.end('Authorization required');
+        return;
+      }
+
+      console.log("验证身份通过");
+
+      // 成功通过身份验证后处理请求
+      handleRequest(reqAuth, resAuth, isThumbnail, parsedUrl);
+    })(req, res);
+  } else {
+    // 对于其他路径，不需要进行身份验证
+    handleRequest(req, res, isThumbnail, parsedUrl);
+  }
+});
+
+// 处理缩略图和其他请求
+const handleRequest = (req, res, isThumbnail, parsedUrl) => {
   if (isThumbnail) {
-    const width = parseInt(parsedUrl.query.width, 10) || 300; // 获取宽度参数，默认为100像素
-    const height = parseInt(parsedUrl.query.height, 10) || 300; // 获取高度参数，默认为100像素
-
-    const imageFile = parsedUrl.pathname; // 获取URL中的路径部分（不包括查询参数）
-
-    // 还原 URL 编码（如 %20 -> 空格）
+    const width = parseInt(parsedUrl.query.width, 10) || 300;
+    const height = parseInt(parsedUrl.query.height, 10) || 300;
+    const imageFile = parsedUrl.pathname;
     const decodedImagePath = decodeURIComponent(imageFile);
-
-    // 生成服务器上的文件路径
     const imagePath = path.join(__dirname, 'images', decodedImagePath);
 
-    // 测试代码 testcode
-    // if (imagePath === "/Users/starlink_brench01/Desktop/DongGuan/my-vue-app/images/Role_1.png") {
-    //   // setAttribute(imagePath, "tag.id", "1");
-    //   // setAttribute(imagePath, "tag.name", "名称");
-    //   // setAttribute(imagePath, "tag.color", "#ff9100");
-    //   console.log(imagePath);
-
-    //   setTimeout(async () => {
-    //     console.log(getAttributeSync(imagePath, 'tag.id').toString())
-    //     console.log(getAttributeSync(imagePath, 'tag.name').toString())
-    //     console.log(getAttributeSync(imagePath, 'tag.color').toString())
-    //   }, 1000);
-    // }
-
-    // 检查图像文件是否存在
     if (fs.existsSync(imagePath)) {
-      // 使用 sharp 生成缩略图
       sharp(imagePath)
-        .resize(width, height) // 根据提供的参数调整大小
-        .toBuffer() // 转换为Buffer
+        .resize(width, height)
+        .toBuffer()
         .then((data) => {
-          res.writeHead(200, { 'Content-Type': 'image/png' });
-          res.end(data); // 返回缩略图
+          res.writeHead(200, {
+            'Content-Type': 'image/png',
+            ...corsHeader
+          });
+          res.end(data);
         })
         .catch((err) => {
           res.writeHead(500, { 'Content-Type': 'text/plain' });
@@ -79,11 +162,11 @@ const protectedServer = http.createServer((req, res) => {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('Image not found');
     }
-    return;
+  } else {
+    // 非缩略图请求交由http-server处理
+    server.server.emit('request', req, res);
   }
-
-  server.server.emit('request', req, res);
-});
+};
 
 // 启动服务器
 protectedServer.listen(8089, () => {
