@@ -18,7 +18,7 @@ const props = defineProps<{
     handleSelectFolds: (url: string, checked: boolean, index: number) => void;
     navigateToFolder: (folderName: string) => void;
     editFolderName: (folderName: string, index: number) => void;
-    confirmDeleteFolder: (folderName: string) => void;
+    confirmDeleteFolder: (folderName: string, havePassword: boolean) => void;
 }>();
 </script>
 
@@ -42,7 +42,7 @@ const props = defineProps<{
                     <a-button v-if="isEditMode" type="link" :icon="h(EditOutlined)"
                         @click="editFolderName(folder.name, index)" />
                     <a-button v-if="isEditMode" type="link" danger :icon="h(DeleteOutlined)"
-                        @click="confirmDeleteFolder(folder.name)" />
+                        @click="confirmDeleteFolder(folder.name, folder.tag?.havePassword || false)" />
                 </div>
             </div>
         </div>

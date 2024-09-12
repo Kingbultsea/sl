@@ -687,13 +687,20 @@ function appendToCurrentPath(inputValue: string): string {
 }
 
 // 删除文件夹
-const confirmDeleteFolder = (folderName: string) => {
+const confirmDeleteFolder = (folderName: string, havePassword: boolean) => {
   Modal.confirm({
     title: '删除确认',
     content: `你确认要删除文件夹 ${folderName} 吗？`,
     onOk() {
       const folderPathValue = `${folderPath.value}/${folderName}`;
-      return axios.post('/delete-folder', { folderPath: folderPathValue })
+
+      let password = ""
+
+      if (havePassword) {
+        password = prompt("请输入密码") || "";
+      }
+
+      return axios.post('/delete-folder', { folderPath: folderPathValue, password })
         .then(() => {
           message.success('文件夹删除成功');
           fetchHtmlAndExtractImages(); // 触发刷新事件

@@ -365,16 +365,25 @@ export default function uploadPlugin() {
 
       // 删除文件夹处理
       app.post('/delete-folder', (req, res) => {
-        const { folderPath, password } = req.body.folderPath;
+        const folderPath = req.body.folderPath;
+        const password = req.body.password;
+
+
+        console.log("删除文件", folderPath, password);
+
         if (!folderPath) {
           return res.status(400).send('Folder path is required');
         }
 
         const fullPath = path.join(__dirname, './images', folderPath);
 
+        console.log("fullPath", fullPath);
+
         try {
           // 检查是否存在 user.password 扩展属性
-          const tagPassword = getAttributeSync(fullPath, 'user.password');
+          const tagPassword = getAttributeSync(fullPath, 'user.password').toString();
+
+          console.log("目标密码", tagPassword);
 
           if (password !== tagPassword) {
             // 如果存在 user.password 属性，拒绝删除
