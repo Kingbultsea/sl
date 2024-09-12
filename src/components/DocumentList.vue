@@ -26,8 +26,14 @@ const props = defineProps<{ isDarkMode: boolean }>();
 // todo 按照目前的现有的结构，再弄一个上层父级的分类
 // { { id: 标签id, name: "标签名称", color: "标签颜色", list: { imageUrls: [], folderLinks: [], otherFiles: [] }  } }
 const sortPanelData = ref<{ id: string, name: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }[]>([]);
-const isInWhiteIpList = ref<boolean>(false); // 是否在ip白名单内
-const currentPassword = ref<string>(""); // 记录当前文件夹层的密码
+const isInWhiteList = ref<boolean>(false); // 是否在ip白名单内
+const currentPasswordMap = ref<Record<string, string>>({}); // 记录当前文件夹层的密码
+const currentPassword = ref<string>(); // 记录当前文件夹层的密码
+
+// 每次currentPasswordMap改动时，存储到sessionStorage
+watch(currentPasswordMap, (newValue) => {
+  sessionStorage.setItem('currentPasswordMap', JSON.stringify(newValue));
+}, { deep: true }); // deep:true 监听对象的深层变化
 
 // 直接改为false 不需要颜色 转换为 分类
 const isSortByFilesByTagMode = ref(true); // ref(JSON.parse(localStorage.getItem('isSortByFilesByTagMode') || 'false'));
@@ -333,7 +339,12 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       // 资源受保护，需要密码
       console.log("资源需要密码");
 
-      password = prompt("请输入密码");
+      // 如果存在密码，则不用再输入
+      if (currentPasswordMap.value[curUrl]) {
+        password = currentPasswordMap.value[curUrl];
+      } else {
+        password = prompt("请输入密码");
+      }
 
       if (password == null) {
         return;
@@ -351,8 +362,9 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       response = protectedResponse;
 
       currentPassword.value = password;
-
-      console.log("获取到的数据", response);
+      currentPasswordMap.value[curUrl] = password;
+    } else {
+      currentPassword.value = undefined;
     }
 
     searchValue.value = "";
@@ -438,6 +450,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     fn();
 
   } catch (error) {
+    delete currentPasswordMap.value[curUrl]
     router.back();
     console.error('Error fetching HTML:', error);
     alert("密码错误");
@@ -808,7 +821,7 @@ const sortItems = () => {
 // 获取ip
 const getIp = async () => {
   axios.get("/get-ip").then(res => {
-    isInWhiteIpList.value = res.data.isInWhiteIpList;
+    isInWhiteList.value = res.data.isInWhiteList;
   })
 }
 
@@ -893,6 +906,12 @@ onMounted(async () => {
   try {
     const response = await axios.get('/get-tags');
     baseTags.value = response.data.tags; // 假设服务器返回的数据是包含标签的数组
+
+    const storedPasswordMap = sessionStorage.getItem('currentPasswordMap');
+    if (storedPasswordMap) {
+      // 恢复存储在sessionStorage中的数据
+      currentPasswordMap.value = JSON.parse(storedPasswordMap);
+    }
 
     getIp();
 
@@ -1012,11 +1031,11 @@ onMounted(async () => {
         </a-button>
       </a-dropdown>
 
-      <a-button :icon="h(LockOutlined)" class="a_button_class" @click="setPassword()">
+      <a-button v-if="isInWhiteList" :icon="h(LockOutlined)" class="a_button_class" @click="setPassword()">
         为文件上锁
       </a-button>
 
-      <a-button :icon="h(UnlockOutlined)" class="a_button_class" @click="removePassword()">
+      <a-button v-if="isInWhiteList" :icon="h(UnlockOutlined)" class="a_button_class" @click="removePassword()">
         为文件解锁
       </a-button>
     </div>
@@ -1047,9 +1066,9 @@ onMounted(async () => {
           :confirmDeleteImage="confirmDeleteImage" />
 
         <!-- 渲染其他文件类型 -->
-        <OtherFile v-if="panel.list.otherFiles.length > 0" :otherFiles="panel.list.otherFiles"
-          :isSelectMode="isSelectMode" :isEditMode="isEditMode" :selectedFiles="selectedFiles"
-          :handleSelectFile="handleSelectFile" :confirmDeleteFile="confirmDeleteFile" />
+        <OtherFile v-if="panel.list.otherFiles.length > 0" :currentPassword="currentPassword"
+          :otherFiles="panel.list.otherFiles" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
+          :selectedFiles="selectedFiles" :handleSelectFile="handleSelectFile" :confirmDeleteFile="confirmDeleteFile" />
       </div>
     </template>
     <template key="1" v-else>
@@ -1064,8 +1083,9 @@ onMounted(async () => {
         :getThumbnailUrl="getThumbnailUrl" :confirmDeleteImage="confirmDeleteImage" />
 
       <!-- 其他文件 -->
-      <OtherFile :otherFiles="otherFiles" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
-        :selectedFiles="selectedFiles" :handleSelectFile="handleSelectFile" :confirmDeleteFile="confirmDeleteFile" />
+      <OtherFile :currentPassword="currentPassword" :otherFiles="otherFiles" :isSelectMode="isSelectMode"
+        :isEditMode="isEditMode" :selectedFiles="selectedFiles" :handleSelectFile="handleSelectFile"
+        :confirmDeleteFile="confirmDeleteFile" />
     </template>
   </div>
 </template>

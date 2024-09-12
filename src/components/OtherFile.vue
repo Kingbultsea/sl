@@ -2,6 +2,7 @@
 import { defineProps, h } from 'vue';
 import { Checkbox, Button as aButton } from 'ant-design-vue';
 import { FileOutlined, DeleteOutlined } from '@ant-design/icons-vue';
+import axios from 'axios'; // 这里要注意axois 如果为单例的话会出现问题
 
 // 定义文件类型
 interface FileItem {
@@ -10,11 +11,12 @@ interface FileItem {
     lastModified: number;
     fileSize: string;
     lastModifiedText?: string;
-    tag?: { color: string, name: string, id: string };
+    tag?: { color: string, name: string, id: string, havePassword?: boolean };
 }
 
 // 定义组件接收的 props
 const props = defineProps<{
+    currentPassword?: string,
     otherFiles: FileItem[];
     isSelectMode: boolean;
     isEditMode: boolean;
@@ -22,6 +24,39 @@ const props = defineProps<{
     handleSelectFile: (url: string, checked: boolean, index: number) => void;
     confirmDeleteFile: (name: string) => void;
 }>();
+
+const downloadFile = async (url: string, fileName: string) => {
+    try {
+        const headers: Record<string, string> = {};
+
+        // 如果有密码，则添加 Authorization 头
+        if (props.currentPassword) {
+            headers['Authorization'] = `Basic ${btoa('admin:' + props.currentPassword)}`;
+        }
+
+        // 发起带有 Authorization 头的请求获取文件
+        const response = await axios.get(url, {
+            responseType: 'blob', // 获取文件为 Blob 格式
+            headers
+        });
+
+        // 创建 Blob URL
+        const blobUrl = URL.createObjectURL(response.data);
+
+        // 创建一个隐藏的 <a> 元素，并触发下载
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.setAttribute('download', fileName); // 可以在这里指定下载的文件名
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // 释放 Blob URL
+        URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+        console.error('Error downloading file:', error);
+    }
+}
 </script>
 
 <template>
@@ -40,7 +75,10 @@ const props = defineProps<{
                         <div>{{ file.fileSize }}</div>
                     </div>
 
-                    <a type="link" style="color: #1677ff" :href="file.url" target="_blank">下载</a>
+                    <a type="link" v-if="file.tag?.havePassword || currentPassword === undefined" style="color: #1677ff" :href="file.url" target="_blank">直接下载</a>
+                    <a type="link" v-else style="color: #1677ff"
+                    @click.prevent="downloadFile(file.url, file.name)">blob下载</a>
+
                     <div class="file-name">{{ file.name }}</div>
                     <div class="file-name">{{ file.lastModifiedText }}</div>
 

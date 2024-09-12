@@ -45,8 +45,6 @@ const protectedServer = http.createServer((req, res) => {
   const decodedPathname = decodeURIComponent(parsedUrl.pathname); // 解码路径
   const password = isProtected(decodedPathname);
 
-  // todo 根据tags.json的lock，如果是文件夹，即末尾是/，则用startsWith，如果是文件，则直接判断是不是同一个文件路径，
-  // 如果判断到是，则需要验证，而且password需要一致
   if (password) {
     const basicAuth = auth.basic({
       realm: "Protected Area"

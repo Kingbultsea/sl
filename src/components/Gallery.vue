@@ -24,7 +24,7 @@ const LoadPreview = (url: string) => {
 
 // 定义组件接收的 props
 const props = defineProps<{
-    currentPassword: string,
+    currentPassword?: string,
     imageUrls: ImageItem[];
     isSelectMode: boolean;
     isEditMode: boolean;
@@ -38,17 +38,22 @@ const loadedImages = ref<Record<string, string>>({});
 
 const fetchImageWithAuth = async (imageUrl: string) => {
     try {
+        const headers: Record<string, string> = {};
+
+        // 判断是否存在密码
+        if (props.currentPassword) {
+            headers['Authorization'] = `Basic ${btoa('admin:' + props.currentPassword)}`;
+        }
+
         const response = await axios.get(imageUrl, {
             responseType: 'blob', // 获取图片为二进制数据
-            headers: {
-                Authorization: `Basic ${btoa('admin:' + props.currentPassword)}`, // 设置 Authorization 请求头
-            }
+            headers, // 动态设置请求头
         });
 
         // 将 Blob 数据转换为本地 Blob URL
         const blobUrl = URL.createObjectURL(response.data);
 
-        return blobUrl
+        return blobUrl;
     } catch (error) {
         console.error('Error fetching image:', error);
     }

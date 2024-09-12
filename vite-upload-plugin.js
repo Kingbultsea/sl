@@ -297,7 +297,7 @@ export default function uploadPlugin() {
 
             }
 
-            console.log("文件标签获取：", filePath, tagId, tagColor);
+            console.log("文件标签获取：", filePath, tagId, tagColor, havePassword);
 
             const orginTagData = tagsData.find(tag => tag.id === tagId);
 
@@ -489,6 +489,8 @@ export default function uploadPlugin() {
           const data = fs.readFileSync(tagsFilePath);
           tagsData = JSON.parse(data);
         }
+
+        console.log("当前ip在白名单内,", tagsData.whiteIpList.includes(clientIp));
 
         res.json({ ip: clientIp, whiteIpList: tagsData.whiteIpList, isInWhiteList: tagsData.whiteIpList.includes(clientIp) });
       });
