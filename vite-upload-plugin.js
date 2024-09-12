@@ -365,13 +365,29 @@ export default function uploadPlugin() {
 
       // 删除文件夹处理
       app.post('/delete-folder', (req, res) => {
-        const folderPath = req.body.folderPath;
+        const { folderPath, password } = req.body.folderPath;
         if (!folderPath) {
           return res.status(400).send('Folder path is required');
         }
 
         const fullPath = path.join(__dirname, './images', folderPath);
-        // console.log('删除文件夹', fullPath);
+
+        try {
+          // 检查是否存在 user.password 扩展属性
+          const tagPassword = getAttributeSync(fullPath, 'user.password');
+
+          if (password !== tagPassword) {
+            // 如果存在 user.password 属性，拒绝删除
+            return res.status(403).send('Cannot delete protected folder');
+          }
+        } catch (err) {
+          // 如果没有 user.password 属性，继续删除操作
+          if (err.code !== 'ENOATTR') {
+            // 如果发生其他错误，返回错误信息
+            console.error('Error checking folder attributes:', err);
+            return res.status(500).send('Error checking folder attributes');
+          }
+        }
 
         try {
           fs.rmdirSync(fullPath, { recursive: true });

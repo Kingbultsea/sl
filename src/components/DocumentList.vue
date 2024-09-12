@@ -347,6 +347,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       }
 
       if (password == null) {
+        router.back();
         return;
       }
 
