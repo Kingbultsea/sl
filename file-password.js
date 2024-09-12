@@ -30,11 +30,9 @@ export const removePassword = (filePaths) => {
             throw new Error(`File ${filePath} does not exist`);
         }
 
-        try {
-            removeAttribute(fullPath, "user.password");
-        } catch {
-            // 标签不存在的情况下删除标签
-        }
+        removeAttribute(fullPath, "user.password").catch(e => {
+            console.log(e);
+        });
     });
 };
 

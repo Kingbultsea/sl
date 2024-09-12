@@ -232,7 +232,9 @@ export default function uploadPlugin() {
 
             // 0 为删除标签
             if (tag.id === "0") {
-              removeAttribute(formatPath, 'tag.id');
+              removeAttribute(formatPath, 'tag.id').catch(e => {
+                console.log(e);
+              });;
               // removeAttribute(formatPath, 'tag.name');
               // removeAttribute(formatPath, 'tag.color');
             } else {
@@ -309,7 +311,9 @@ export default function uploadPlugin() {
                 havePassword, // 是否拥有密码
               };
             } else {
-              removeAttribute(formatPath, 'tag.id');
+              removeAttribute(formatPath, 'tag.id').catch(e => {
+                console.log(e);
+              });;
               // removeAttribute(formatPath, 'tag.name');
               // removeAttribute(formatPath, 'tag.color');
 
