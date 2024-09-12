@@ -24,6 +24,7 @@ const LoadPreview = (url: string) => {
 
 // 定义组件接收的 props
 const props = defineProps<{
+    currentPassword: string,
     imageUrls: ImageItem[];
     isSelectMode: boolean;
     isEditMode: boolean;
@@ -40,7 +41,7 @@ const fetchImageWithAuth = async (imageUrl: string) => {
         const response = await axios.get(imageUrl, {
             responseType: 'blob', // 获取图片为二进制数据
             headers: {
-                Authorization: `Basic ${btoa('admin:password')}`, // 设置 Authorization 请求头
+                Authorization: `Basic ${btoa('admin:' + props.currentPassword)}`, // 设置 Authorization 请求头
             }
         });
 

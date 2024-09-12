@@ -1,29 +1,13 @@
 import path from 'path';
 import fs from 'fs';
 import { tagsFilePath } from './vite-upload-plugin';
+import { setAttribute, getAttributeSync, removeAttribute } from 'fs-xattr'
 
 const __dirname = path.resolve(); // 计算 __dirname
 const directory = path.join(__dirname, './images');
 
-// 读取并解析 tags.json 文件
-const readTagsFile = () => {
-    if (fs.existsSync(tagsFilePath)) {
-        const data = fs.readFileSync(tagsFilePath, 'utf-8');
-        return JSON.parse(data);
-    } else {
-        return { lock: [] }; // 如果文件不存在，返回空的 lock 数组
-    }
-};
-
-// 将更新后的数据写入 tags.json 文件
-const writeTagsFile = (tagsData) => {
-    fs.writeFileSync(tagsFilePath, JSON.stringify(tagsData, null, 2));
-};
-
 // 1. 设置密码
 export const setPassword = (filePaths, password) => {
-    let tagsData = readTagsFile();
-
     filePaths.forEach(filePath => {
         const fullPath = path.join(directory, filePath);
 
@@ -32,36 +16,12 @@ export const setPassword = (filePaths, password) => {
             throw new Error(`File ${filePath} does not exist`);
         }
 
-        // 查找是否已有该文件路径的记录
-        let lockEntry = tagsData.lock.find(entry => entry.files.includes(filePath));
-
-        if (!filePath.startsWith('/')) {
-            filePath = '/' + filePath;
-        }
-
-        if (lockEntry) {
-            // 更新密码
-            lockEntry.password = password;
-            lockEntry.files.push(filePath);
-        } else {
-            // 如果没有记录，添加新条目
-            tagsData.lock.push({
-                files: [filePath],
-                password: password
-            });
-        }
-
-        console.log(`Password set for ${filePath}`);
+        setAttribute(fullPath, "user.password", password);
     });
-
-    // 更新 tags.json 文件
-    writeTagsFile(tagsData);
 };
 
 // 2. 去除密码
 export const removePassword = (filePaths) => {
-    let tagsData = readTagsFile();
-
     filePaths.forEach(filePath => {
         const fullPath = path.join(directory, filePath);
 
@@ -70,43 +30,42 @@ export const removePassword = (filePaths) => {
             throw new Error(`File ${filePath} does not exist`);
         }
 
-        if (!filePath.startsWith('/')) {
-            filePath = '/' + filePath;
-        }
-
-        // 从 tagsData.lock 中删除该文件路径
-        tagsData.lock = tagsData.lock.filter(entry => !entry.files.includes(filePath));
-
-        console.log(`Password removed for ${filePath}`);
+        removeAttribute(fullPath, "user.password");
     });
-
-    // 更新 tags.json 文件
-    writeTagsFile(tagsData);
 };
 
-// 3. 获取被加密的文件路径
-export const getEncryptedFiles = () => {
-    const encryptedFiles = [];
+// 去除路径末尾的斜杠（如果有）
+const removeTrailingSlash = (p) => p.endsWith(path.sep) ? p.slice(0, -1) : p;
 
-    // 读取并解析 tags.json 文件
-    if (fs.existsSync(tagsFilePath)) {
-        const data = fs.readFileSync(tagsFilePath, 'utf-8');
+// 检查文件或文件夹是否受保护
+export
+    const isProtected = (pathname) => {
         try {
-            const tagsData = JSON.parse(data);
+            let currentPath = path.join(__dirname, 'images', pathname);  // 使用 __dirname 获取当前文件的绝对路径
+            // 规范化路径，去除尾部斜杠
+            currentPath = removeTrailingSlash(currentPath);
 
-            // 遍历 lock 配置，提取文件和文件夹路径
-            tagsData.lock.forEach((lockEntry) => {
-                if (Array.isArray(lockEntry.files)) {
-                    lockEntry.files.forEach((file) => {
-                        encryptedFiles.push(file); // 添加文件/文件夹路径
-                    });
+            // 逐步向上检查文件夹是否有 "user.password" 属性
+            while (currentPath !== directory) {
+                try {
+                    // 尝试获取扩展属性 "user.password"
+                    const password = getAttributeSync(currentPath, 'user.password');
+
+                    // 如果有 password 属性，返回其值
+                    if (password) {
+                        return password.toString(); // 将 Buffer 转换为字符串
+                    }
+                } catch (err) {
+                    // 当前路径没有设置 user.password，继续向上检查父目录
                 }
-            });
-        } catch (err) {
-            console.error('Error parsing tags.json:', err.message);
-            return [];
-        }
-    }
 
-    return encryptedFiles;
-};
+                // 继续检查上一级目录
+                currentPath = path.dirname(currentPath);
+            }
+
+        } catch (err) {
+            console.error(`Error reading extended attributes for ${pathname}: ${err.message}`);
+        }
+
+        return null; // 没有找到 password 属性时返回 null
+    };

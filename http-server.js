@@ -7,22 +7,8 @@ import sharp from 'sharp';
 import fs from 'fs';
 import auth from 'http-auth'; // 添加 http-auth 依赖
 import { getIp } from './server-tool';
+import { isProtected } from './file-password';
 
-// 读取并解析 tags.json 文件
-let tags = JSON.parse(fs.readFileSync('./tags.json', 'utf8'));
-
-// 监听 tags.json 文件的变化
-fs.watch('./tags.json', (eventType) => {
-  if (eventType === 'change') {
-    console.log('tags.json 文件发生变化，重新加载...');
-    try {
-      tags = JSON.parse(fs.readFileSync('./tags.json', 'utf8'));
-      console.log('tags.json 文件重新加载成功');
-    } catch (err) {
-      console.error('Error reloading tags.json:', err.message);
-    }
-  }
-});
 
 const corsHeader = {
   'Access-Control-Allow-Origin': `http://${ip.address()}:3000`,
@@ -39,39 +25,6 @@ const server = httpServer.createServer({
   // cache: 3600 // 这里设置为1小时的缓存时间，和上面的 Cache-Control 对应
 });
 
-// 判断路径是否为文件夹
-const isDirectory = (dirPath) => {
-  try {
-    // 将 ./images 和传入的路径合并
-    const normalizedPath = path.join('./images', dirPath);
-
-    const stats = fs.statSync(normalizedPath);
-    return stats.isDirectory(); // 如果是文件夹则返回 true
-  } catch (err) {
-    console.error(`Error checking path: ${err.message}`);
-    return false; // 如果路径不存在或其他错误，返回 false
-  }
-};
-
-// 检查文件或文件夹是否受保护
-const isProtected = (pathname) => {
-  const { lock } = tags;
-  for (const entry of lock) {
-    // 检查是否是受保护的文件
-    if (entry.files.includes(pathname)) {
-      return entry.password;
-    }
-
-    console.log('查看查询的pathname', pathname, isDirectory(pathname), pathname.startsWith(entry.files), entry.files);
-
-    // 检查是否是受保护的文件夹
-    if (isDirectory(pathname) && pathname.startsWith(entry.files)) {
-      return entry.password;
-    }
-  }
-  return null;
-};
-
 // 创建普通的 HTTP 服务器
 const protectedServer = http.createServer((req, res) => {
   let clientIp = getIp(req.headers['x-forwarded-for'] || req.connection.remoteAddress);
@@ -79,7 +32,10 @@ const protectedServer = http.createServer((req, res) => {
   console.log('Client IP:', clientIp); // 输出请求方的 IP 地址
 
   if (req.method === 'OPTIONS') {
-    res.writeHead(200, corsHeader);
+    res.writeHead(200, {
+      ...corsHeader,
+      'Access-Control-Max-Age': '31536000' // 设置预检请求的缓存时间为1年
+    });
     res.end();
     return;
   }

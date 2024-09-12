@@ -27,9 +27,12 @@ const props = defineProps<{ isDarkMode: boolean }>();
 // { { id: 标签id, name: "标签名称", color: "标签颜色", list: { imageUrls: [], folderLinks: [], otherFiles: [] }  } }
 const sortPanelData = ref<{ id: string, name: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }[]>([]);
 const isInWhiteIpList = ref<boolean>(false); // 是否在ip白名单内
+const currentPassword = ref<string>(""); // 记录当前文件夹层的密码
 
 // 直接改为false 不需要颜色 转换为 分类
 const isSortByFilesByTagMode = ref(true); // ref(JSON.parse(localStorage.getItem('isSortByFilesByTagMode') || 'false'));
+
+const encryptedFiles = ref<string[]>([]);
 
 watch(isSortByFilesByTagMode, (newValue) => {
   localStorage.setItem('isSortByFilesByTagMode', JSON.stringify(newValue));
@@ -205,6 +208,10 @@ const fetchTags = async (files: TypeFile[]) => {
 
     // 更新每个imageUrls中的标签信息
     files.forEach((image, index) => {
+      if (response.data[index].havePassword) {
+        encryptedFiles.value.push(image.url);
+        console.log(image, '该文件有锁');
+      }
       image.tag = response.data[index]; // 将返回的标签设置到对应的image
     });
 
@@ -303,51 +310,61 @@ let timeoutId: any; // 用于存储 setInterval 的 ID
 let currentLinks: any[] = []; // 存储当前的链接列表
 
 const fetchHtmlAndExtractImages = async (): Promise<void> => {
+  const curUrl = `${IMAGE_BASE_URL}${folderPath.value}`;
+
   let username = 'admin';
   let password: string | null = '';
-
-  await fetchEncryptedFilesPromise;
-
-  if (encryptedFiles.value.includes(folderPath.value.toString())) {
-    console.log("该文件夹需要加密");
-    password = prompt("请输入密码");
-
-    if (password == null) {
-      router.back();
-      return;
-    }
-
-    console.log('在浏览器上获取到的密码', password);
-  } else {
-    console.log("该文件夹不需要加密:", folderPath.value.toString());
-  }
-
-  searchValue.value = "";
-  folderLinks.value = [];
-  imageUrls.value = [];
-  otherFiles.value = [];
-  selectedImages.value.clear();
-  selectedFiles.value.clear();
-  selectedFold.value.clear();
-  currentLinks = [];
 
   if (timeoutId) {
     clearInterval(timeoutId);
   }
 
-  // 将用户名和密码进行 Base64 编码
-  const token = btoa(`${username}:${password}`);
-
   try {
-    const curUrl = `${IMAGE_BASE_URL}${folderPath.value}`;
+    let response
+    let needAuth = false
+    try {
+      response = await axios.get(curUrl);
+    } catch (error: any) {
+      // 这里需要解决cors问题
+      needAuth = true
+    }
 
-    const response = await axios.get(curUrl, password ? {
-      headers: {
-        'Authorization': `Basic ${token}` // 设置 Authorization 头
+    if (needAuth) {
+      // 资源受保护，需要密码
+      console.log("资源需要密码");
+
+      password = prompt("请输入密码");
+
+      if (password == null) {
+        return;
       }
-    } : {});
 
-    const html = response.data;
+      // 将用户名和密码进行 Base64 编码
+      const token = btoa(`${username}:${password}`);
+
+      // 重新发起带密码的请求
+      const protectedResponse = await axios.get(curUrl, {
+        headers: {
+          'Authorization': `Basic ${token}` // 设置 Authorization 头
+        }
+      });
+      response = protectedResponse;
+
+      currentPassword.value = password;
+
+      console.log("获取到的数据", response);
+    }
+
+    searchValue.value = "";
+    folderLinks.value = [];
+    imageUrls.value = [];
+    otherFiles.value = [];
+    selectedImages.value.clear();
+    selectedFiles.value.clear();
+    selectedFold.value.clear();
+    currentLinks = [];
+
+    const html = response!.data;
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
@@ -421,7 +438,9 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     fn();
 
   } catch (error) {
+    router.back();
     console.error('Error fetching HTML:', error);
+    alert("密码错误");
   }
 };
 
@@ -809,7 +828,6 @@ const setPassword = async () => {
       filePaths,
       password,
     });
-    getEncryptedFiles();
     alert('Password set successfully');
   } catch (error) {
     console.error('Error setting password:', error);
@@ -827,31 +845,10 @@ const removePassword = async () => {
     const response = await axios.post('/remove-password', {
       filePaths,
     });
-    getEncryptedFiles();
     alert('Password removed successfully');
   } catch (error) {
     console.error('Error removing password:', error);
     alert('Failed to remove password');
-  }
-};
-
-// 存储加密文件路径列表
-const encryptedFiles = ref<string[]>([]);
-let fetchEncryptedFilesPromiseResolve: Function | null = null;
-const fetchEncryptedFilesPromise = new Promise((resolve) => {
-  fetchEncryptedFilesPromiseResolve = resolve; // 保存 resolve 函数引用
-});
-
-// 获取所有加密文件
-const getEncryptedFiles = async () => {
-  try {
-    const response = await axios.get('/get-encrypted-files');
-    console.log(response.data, '所有加密文件列表');
-    encryptedFiles.value = response.data;
-    fetchEncryptedFilesPromiseResolve && fetchEncryptedFilesPromiseResolve();
-  } catch (error) {
-    console.error('Error getting encrypted files:', error);
-    alert('Failed to get encrypted files');
   }
 };
 
@@ -898,9 +895,6 @@ onMounted(async () => {
     baseTags.value = response.data.tags; // 假设服务器返回的数据是包含标签的数组
 
     getIp();
-
-    // todo
-    getEncryptedFiles();
 
     // const storedValue = localStorage.getItem('isSortByFilesByTagMode');
     // if (storedValue !== null) {
@@ -1047,9 +1041,10 @@ onMounted(async () => {
           :confirmDeleteFolder="confirmDeleteFolder" />
 
         <!-- 渲染图片库类型 -->
-        <Gallery v-if="panel.list.imageUrls.length > 0" :imageUrls="panel.list.imageUrls" :isSelectMode="isSelectMode"
-          :isEditMode="isEditMode" :selectedImages="selectedImages" :handleSelectImage="handleSelectImage"
-          :getThumbnailUrl="getThumbnailUrl" :confirmDeleteImage="confirmDeleteImage" />
+        <Gallery v-if="panel.list.imageUrls.length > 0" :currentPassword="currentPassword"
+          :imageUrls="panel.list.imageUrls" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
+          :selectedImages="selectedImages" :handleSelectImage="handleSelectImage" :getThumbnailUrl="getThumbnailUrl"
+          :confirmDeleteImage="confirmDeleteImage" />
 
         <!-- 渲染其他文件类型 -->
         <OtherFile v-if="panel.list.otherFiles.length > 0" :otherFiles="panel.list.otherFiles"
@@ -1064,9 +1059,9 @@ onMounted(async () => {
         :editFolderName="editFolderName" :confirmDeleteFolder="confirmDeleteFolder" />
 
       <!-- 图片库类型 -->
-      <Gallery :imageUrls="imageUrls" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
-        :selectedImages="selectedImages" :handleSelectImage="handleSelectImage" :getThumbnailUrl="getThumbnailUrl"
-        :confirmDeleteImage="confirmDeleteImage" />
+      <Gallery :imageUrls="imageUrls" :currentPassword="currentPassword" :isSelectMode="isSelectMode"
+        :isEditMode="isEditMode" :selectedImages="selectedImages" :handleSelectImage="handleSelectImage"
+        :getThumbnailUrl="getThumbnailUrl" :confirmDeleteImage="confirmDeleteImage" />
 
       <!-- 其他文件 -->
       <OtherFile :otherFiles="otherFiles" :isSelectMode="isSelectMode" :isEditMode="isEditMode"

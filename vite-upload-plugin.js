@@ -6,7 +6,7 @@ import fg from 'fast-glob';
 import fs from 'fs';
 import "./http-server";
 import { setAttribute, getAttributeSync, removeAttribute } from 'fs-xattr'
-import { setPassword, removePassword, getEncryptedFiles } from './file-password.js';
+import { setPassword, removePassword } from './file-password.js';
 import { getIp } from './server-tool.js';
 
 const __dirname = path.resolve(); // 计算 __dirname
@@ -276,9 +276,8 @@ export default function uploadPlugin() {
 
 
             let tagId = "0"
-            // const tagName = getAttributeSync(formatPath, 'tag.name').toString();
-
             let tagColor = "#ffffff"
+            let havePassword = false;
 
             try {
               tagColor = getAttributeSync(formatPath, 'tag.color').toString();
@@ -292,6 +291,12 @@ export default function uploadPlugin() {
 
             }
 
+            try {
+              havePassword = getAttributeSync(formatPath, 'user.password').toString() ? true : false;
+            } catch {
+
+            }
+
             console.log("文件标签获取：", filePath, tagId, tagColor);
 
             const orginTagData = tagsData.find(tag => tag.id === tagId);
@@ -301,6 +306,7 @@ export default function uploadPlugin() {
                 id: orginTagData.id,
                 name: orginTagData.name,
                 color: tagColor, // orginTagData.color,
+                havePassword, // 是否拥有密码
               };
             } else {
               removeAttribute(formatPath, 'tag.id');
@@ -349,17 +355,6 @@ export default function uploadPlugin() {
         } catch (err) {
           console.error('Error removing password:', err.message);
           res.status(500).send('Failed to remove password');
-        }
-      });
-
-      // 获取所有被加密的文件
-      app.get('/get-encrypted-files', (req, res) => {
-        try {
-          const encryptedFiles = getEncryptedFiles();
-          res.json(encryptedFiles);
-        } catch (err) {
-          console.error('Error getting encrypted files:', err.message);
-          res.status(500).send('Failed to get encrypted files');
         }
       });
 
