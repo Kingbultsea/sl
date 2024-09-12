@@ -1031,13 +1031,15 @@ onMounted(async () => {
         </a-button>
       </a-dropdown>
 
-      <a-button v-if="isInWhiteList" :icon="h(LockOutlined)" class="a_button_class" @click="setPassword()">
-        为文件上锁
-      </a-button>
+      <template v-if="(selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0) && isInWhiteList">
+        <a-button :icon="h(LockOutlined)" class="a_button_class" @click="setPassword()">
+          为文件上锁
+        </a-button>
 
-      <a-button v-if="isInWhiteList" :icon="h(UnlockOutlined)" class="a_button_class" @click="removePassword()">
-        为文件解锁
-      </a-button>
+        <a-button :icon="h(UnlockOutlined)" class="a_button_class" @click="removePassword()">
+          为文件解锁
+        </a-button>
+      </template>
     </div>
 
     <div class="search-bar">
