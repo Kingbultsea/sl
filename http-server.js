@@ -5,12 +5,24 @@ import ip from 'ip';
 import path from 'path';
 import sharp from 'sharp';
 import fs from 'fs';
-import net from 'net';
 import auth from 'http-auth'; // 添加 http-auth 依赖
-import { getAttributeSync } from 'fs-xattr';
+import { getIp } from './server-tool';
 
 // 读取并解析 tags.json 文件
-const tags = JSON.parse(fs.readFileSync('./tags.json', 'utf8'));
+let tags = JSON.parse(fs.readFileSync('./tags.json', 'utf8'));
+
+// 监听 tags.json 文件的变化
+fs.watch('./tags.json', (eventType) => {
+  if (eventType === 'change') {
+    console.log('tags.json 文件发生变化，重新加载...');
+    try {
+      tags = JSON.parse(fs.readFileSync('./tags.json', 'utf8'));
+      console.log('tags.json 文件重新加载成功');
+    } catch (err) {
+      console.error('Error reloading tags.json:', err.message);
+    }
+  }
+});
 
 const corsHeader = {
   'Access-Control-Allow-Origin': `http://${ip.address()}:3000`,
@@ -60,20 +72,6 @@ const isProtected = (pathname) => {
   return null;
 };
 
-const getIp = (ip) => {
-  // 检查是否为 IPv6 映射的 IPv4 地址
-  if (net.isIPv4(ip)) {
-    console.log('Client IP (IPv4):', ip);
-  } else if (net.isIPv6(ip) && ip.includes('::ffff:')) {
-    ip = ip.split('::ffff:')[1]; // 提取 IPv4 部分
-    console.log('Client IP (mapped IPv4):', ip);
-  } else {
-    console.log('Client IP (IPv6):', ip);
-  }
-
-  return ip;
-};
-
 // 创建普通的 HTTP 服务器
 const protectedServer = http.createServer((req, res) => {
   let clientIp = getIp(req.headers['x-forwarded-for'] || req.connection.remoteAddress);
@@ -100,9 +98,9 @@ const protectedServer = http.createServer((req, res) => {
       const authHeader = req.headers.authorization;
 
       // 手动解析 Base64 编码的 Authorization 头部
-      const base64Credentials = authHeader.split(' ')[1];
-      const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
-      const [username, password] = credentials.split(':');
+      // const base64Credentials = authHeader.split(' ')[1];
+      // const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+      // const [username, password] = credentials.split(':');
 
       console.log("用户输入的密码", enteredPassword, "tags上的密码: ", password, authHeader);
 

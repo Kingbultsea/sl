@@ -26,6 +26,7 @@ const props = defineProps<{ isDarkMode: boolean }>();
 // todo 按照目前的现有的结构，再弄一个上层父级的分类
 // { { id: 标签id, name: "标签名称", color: "标签颜色", list: { imageUrls: [], folderLinks: [], otherFiles: [] }  } }
 const sortPanelData = ref<{ id: string, name: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }[]>([]);
+const isInWhiteIpList = ref<boolean>(false); // 是否在ip白名单内
 
 // 直接改为false 不需要颜色 转换为 分类
 const isSortByFilesByTagMode = ref(true); // ref(JSON.parse(localStorage.getItem('isSortByFilesByTagMode') || 'false'));
@@ -785,6 +786,13 @@ const sortItems = () => {
   }
 };
 
+// 获取ip
+const getIp = async () => {
+  axios.get("/get-ip").then(res => {
+    isInWhiteIpList.value = res.data.isInWhiteIpList;
+  })
+}
+
 // 设置密码
 const setPassword = async () => {
   const filePaths = [...selectedFiles.value, ...selectedImages.value, ...selectedFold.value].map(filePath => filePath.replace(/https?:\/\/[^\/:]+(:\d+)?\//, ''));
@@ -819,6 +827,7 @@ const removePassword = async () => {
     const response = await axios.post('/remove-password', {
       filePaths,
     });
+    getEncryptedFiles();
     alert('Password removed successfully');
   } catch (error) {
     console.error('Error removing password:', error);
@@ -887,6 +896,8 @@ onMounted(async () => {
   try {
     const response = await axios.get('/get-tags');
     baseTags.value = response.data.tags; // 假设服务器返回的数据是包含标签的数组
+
+    getIp();
 
     // todo
     getEncryptedFiles();
@@ -1011,7 +1022,7 @@ onMounted(async () => {
         为文件上锁
       </a-button>
 
-      <a-button :icon="h(UnlockOutlined)" class="a_button_class" @click="">
+      <a-button :icon="h(UnlockOutlined)" class="a_button_class" @click="removePassword()">
         为文件解锁
       </a-button>
     </div>

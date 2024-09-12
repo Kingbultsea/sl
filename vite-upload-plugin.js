@@ -7,6 +7,7 @@ import fs from 'fs';
 import "./http-server";
 import { setAttribute, getAttributeSync, removeAttribute } from 'fs-xattr'
 import { setPassword, removePassword, getEncryptedFiles } from './file-password.js';
+import { getIp } from './server-tool.js';
 
 const __dirname = path.resolve(); // 计算 __dirname
 const directory = path.join(__dirname, './images');
@@ -88,8 +89,9 @@ export default function uploadPlugin() {
           fs.renameSync(file.path, filePath); // 重命名文件以确保文件名正确
         });
 
-        // console.log('Files:', req.files); // 打印上传的文件信息
-        // console.log('Body:', req.body); // 打印请求体信息
+        // todo 如果重新上传，上了锁的文件，（文件级别，文件夹不用处理，有锁的就默认覆盖）
+
+
         res.send('Files uploaded successfully');
       });
 
@@ -101,7 +103,6 @@ export default function uploadPlugin() {
         }
 
         const fullPath = path.join(__dirname, './images', folderPath);
-        // console.log('创建文件夹', fullPath);
 
         try {
           ensureDir(fullPath);
@@ -122,7 +123,7 @@ export default function uploadPlugin() {
         const oldPath = path.join(__dirname, './images', folderPath);
         const newPath = path.join(__dirname, './images', name);
 
-        // console.log('修改文件夹名称', oldPath, '到', newPath);
+        // todo 上了锁的文件夹，如果修改名字，需要把锁的名字也同时更改
 
         try {
           fs.renameSync(oldPath, newPath);
@@ -482,7 +483,20 @@ export default function uploadPlugin() {
         }
       });
 
-      // 文件加密处理 （可以通过标签的方式去标记， 现在需要处理的问题是，http-server 没有真正的加密）
+      // 获取ip
+      // 获取客户端IP的接口
+      app.get('/get-ip', (req, res) => {
+        const clientIp = getIp(req.headers['x-forwarded-for'] || req.connection.remoteAddress);
+
+        let tagsData = [];
+
+        if (fs.existsSync(tagsFilePath)) {
+          const data = fs.readFileSync(tagsFilePath);
+          tagsData = JSON.parse(data);
+        }
+
+        res.json({ ip: clientIp, whiteIpList: tagsData.whiteIpList, isInWhiteList: tagsData.whiteIpList.includes(clientIp) });
+      });
 
       server.middlewares.use(app);
     }

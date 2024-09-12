@@ -70,6 +70,10 @@ export const removePassword = (filePaths) => {
             throw new Error(`File ${filePath} does not exist`);
         }
 
+        if (!filePath.startsWith('/')) {
+            filePath = '/' + filePath;
+        }
+
         // 从 tagsData.lock 中删除该文件路径
         tagsData.lock = tagsData.lock.filter(entry => !entry.files.includes(filePath));
 

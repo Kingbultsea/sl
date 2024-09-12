@@ -17,18 +17,6 @@
   "lock": [
     {
       "files": [
-        "/protected"
-      ],
-      "password": "password"
-    },
-    {
-      "files": [
-        "/pp2"
-      ],
-      "password": "password2"
-    },
-    {
-      "files": [
         "/这个密码是12345"
       ],
       "password": "12345"
@@ -38,6 +26,23 @@
         "/这个密码是123"
       ],
       "password": "123"
+    },
+    {
+      "files": [
+        "/protected"
+      ],
+      "password": "123456"
+    },
+    {
+      "files": [
+        "/pp2"
+      ],
+      "password": "123"
     }
+  ],
+  "whiteIpList": [
+    "192.168.1.95",
+    "192.168.1.93",
+    "192.168.1.224"
   ]
 }
