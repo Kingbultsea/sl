@@ -319,15 +319,15 @@ export default function uploadPlugin() {
 
       // 设置文件的密码
       app.post('/set-password', (req, res) => {
-        const { filePath, password } = req.body;
+        const { filePaths, password } = req.body;
 
-        if (!filePath || !password) {
-          return res.status(400).send('File path and password are required');
+        if (!Array.isArray(filePaths) || filePaths.length === 0 || !password) {
+          return res.status(400).send('File paths and password are required');
         }
 
         try {
-          setPassword(filePath, password);
-          res.send('Password set successfully');
+          setPassword(filePaths, password); // 为每个文件设置密码
+          res.send('Passwords set successfully for all files');
         } catch (err) {
           console.error('Error setting password:', err.message);
           res.status(500).send('Failed to set password');
@@ -336,15 +336,15 @@ export default function uploadPlugin() {
 
       // 去除文件密码
       app.post('/remove-password', (req, res) => {
-        const { filePath } = req.body;
+        const { filePaths } = req.body;
 
-        if (!filePath) {
-          return res.status(400).send('File path is required');
+        if (!Array.isArray(filePaths) || filePaths.length === 0) {
+          return res.status(400).send('File paths are required');
         }
 
         try {
-          removePassword(filePath);
-          res.send('Password removed successfully');
+          removePassword(filePaths); // 为每个文件移除密码
+          res.send('Passwords removed successfully for all files');
         } catch (err) {
           console.error('Error removing password:', err.message);
           res.status(500).send('Failed to remove password');

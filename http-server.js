@@ -88,15 +88,12 @@ const protectedServer = http.createServer((req, res) => {
 
   const parsedUrl = url.parse(req.url, true);
   const isThumbnail = parsedUrl.query.thumbnail === 'true'; // 通过查询参数判断是否需要缩略图
-  const password = isProtected(parsedUrl.pathname);
-
-  console.log(parsedUrl.pathname);
+  const decodedPathname = decodeURIComponent(parsedUrl.pathname); // 解码路径
+  const password = isProtected(decodedPathname);
 
   // todo 根据tags.json的lock，如果是文件夹，即末尾是/，则用startsWith，如果是文件，则直接判断是不是同一个文件路径，
   // 如果判断到是，则需要验证，而且password需要一致
   if (password) {
-    console.log("进入验证阶段");
-
     const basicAuth = auth.basic({
       realm: "Protected Area"
     }, (_, enteredPassword, callback) => {

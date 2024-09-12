@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, watch, h, computed, onMounted, nextTick } from 'vue';
+import { ref, watch, h, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
-import { FolderOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, BgColorsOutlined, DownloadOutlined, TagOutlined, OrderedListOutlined } from '@ant-design/icons-vue';
-import { Checkbox, Modal, message } from 'ant-design-vue';
+import { EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, UnlockOutlined, LockOutlined, BgColorsOutlined, DownloadOutlined, TagOutlined, OrderedListOutlined } from '@ant-design/icons-vue';
+import { Modal, message } from 'ant-design-vue';
 // @ts-ignore
 import { saveAs } from 'file-saver';
 import { useSpinningStore } from '../stores/spinningStore';
@@ -302,6 +302,25 @@ let timeoutId: any; // 用于存储 setInterval 的 ID
 let currentLinks: any[] = []; // 存储当前的链接列表
 
 const fetchHtmlAndExtractImages = async (): Promise<void> => {
+  let username = 'admin';
+  let password: string | null = '';
+
+  await fetchEncryptedFilesPromise;
+
+  if (encryptedFiles.value.includes(folderPath.value.toString())) {
+    console.log("该文件夹需要加密");
+    password = prompt("请输入密码");
+
+    if (password == null) {
+      router.back();
+      return;
+    }
+
+    console.log('在浏览器上获取到的密码', password);
+  } else {
+    console.log("该文件夹不需要加密:", folderPath.value.toString());
+  }
+
   searchValue.value = "";
   folderLinks.value = [];
   imageUrls.value = [];
@@ -315,25 +334,11 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     clearInterval(timeoutId);
   }
 
-  let username = 'admin';
-  let password = '';
-
   // 将用户名和密码进行 Base64 编码
   const token = btoa(`${username}:${password}`);
 
   try {
     const curUrl = `${IMAGE_BASE_URL}${folderPath.value}`;
-
-    await fetchEncryptedFilesPromise;
-
-    if (encryptedFiles.value.includes(folderPath.value.toString())) {
-      console.log("该文件夹需要加密");
-      password = prompt("请输入密码") || "";
-
-      console.log('在浏览器上获取到的密码', password);
-    } else {
-      console.log("该文件夹不需要加密:", folderPath.value.toString());
-    }
 
     const response = await axios.get(curUrl, password ? {
       headers: {
@@ -781,12 +786,22 @@ const sortItems = () => {
 };
 
 // 设置密码
-const setPassword = async (filePath: string, password: string) => {
+const setPassword = async () => {
+  const filePaths = [...selectedFiles.value, ...selectedImages.value, ...selectedFold.value].map(filePath => filePath.replace(/https?:\/\/[^\/:]+(:\d+)?\//, ''));
+
+
+  const password = prompt("请输入密码");
+
+  if (password == null) {
+    return;
+  }
+
   try {
     const response = await axios.post('/set-password', {
-      filePath,
+      filePaths,
       password,
     });
+    getEncryptedFiles();
     alert('Password set successfully');
   } catch (error) {
     console.error('Error setting password:', error);
@@ -795,10 +810,14 @@ const setPassword = async (filePath: string, password: string) => {
 };
 
 // 移除密码
-const removePassword = async (filePath: string) => {
+const removePassword = async () => {
+  const filePaths = [...selectedFiles.value, ...selectedImages.value, ...selectedFold.value].map(filePath => filePath.replace(/https?:\/\/[^\/:]+(:\d+)?\//, ''));
+
+  console.log(filePaths);
+
   try {
     const response = await axios.post('/remove-password', {
-      filePath,
+      filePaths,
     });
     alert('Password removed successfully');
   } catch (error) {
@@ -987,6 +1006,14 @@ onMounted(async () => {
           添加颜色
         </a-button>
       </a-dropdown>
+
+      <a-button :icon="h(LockOutlined)" class="a_button_class" @click="setPassword()">
+        为文件上锁
+      </a-button>
+
+      <a-button :icon="h(UnlockOutlined)" class="a_button_class" @click="">
+        为文件解锁
+      </a-button>
     </div>
 
     <div class="search-bar">
