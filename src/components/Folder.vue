@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, defineProps, h } from 'vue';
 import { Checkbox, Button as aButton } from 'ant-design-vue';
-import { FolderOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue';
+import { FolderOutlined, EditOutlined, DeleteOutlined, LockOutlined } from '@ant-design/icons-vue';
 
 // 定义组件接收的 props
 interface Folder {
     url: string;
     name: string;
-    tag?: { color: string, name: string, id: string };
+    tag?: { color: string, name: string, id: string, havePassword?: boolean };
 }
 
 const props = defineProps<{
@@ -26,14 +26,16 @@ const props = defineProps<{
     <!-- 文件夹 -->
     <div class="folders" v-if="folderLinks.length > 0">
         <div v-for="(folder, index) in folderLinks" :key="folder.url" class="folder-container"
-            :class="{ 'high-line': folder.tag?.id && folder.tag?.id !== '0' }" :style="{ borderColor: folder.tag?.color }">
+            :class="{ 'high-line': folder.tag?.id && folder.tag?.id !== '0' }"
+            :style="{ borderColor: folder.tag?.color }">
             <Checkbox v-if="isSelectMode" @change="(e: any) => handleSelectFolds(folder.url, e.target.checked, index)"
                 class="image-checkbox" :checked="selectedFold.has(folder.url)" />
 
             <div style="display: flex; justify-content: space-between; padding: 1em;">
                 <a @click.prevent="isSelectMode ? handleSelectFolds(folder.url, !selectedFold.has(folder.url), index) : navigateToFolder(folder.name)"
                     href="#">
-                    <FolderOutlined class="folder-icon" />
+                    <LockOutlined v-if="folder.tag?.havePassword" class="folder-icon folder-icon-lock" />
+                    <FolderOutlined v-else class="folder-icon" />
                     <span class="folder-name">{{ folder.name }}</span>
                 </a>
                 <div>
