@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, defineProps, h } from 'vue';
 import { Checkbox, Button as aButton } from 'ant-design-vue';
-import { FolderOutlined, EditOutlined, DeleteOutlined, LockOutlined } from '@ant-design/icons-vue';
+import { FolderOutlined, EditOutlined, DeleteOutlined, EyeInvisibleOutlined } from '@ant-design/icons-vue';
 
 // 定义组件接收的 props
 interface Folder {
@@ -33,7 +33,7 @@ const props = defineProps<{
             <div style="display: flex; justify-content: space-between; padding: 1em;">
                 <a @click.prevent="isSelectMode ? handleSelectFolds(folder.url, !selectedFold.has(folder.url), index) : navigateToFolder(folder.name)"
                     href="#">
-                    <LockOutlined v-if="folder.tag?.havePassword" class="folder-icon folder-icon-lock" />
+                    <EyeInvisibleOutlined v-if="folder.tag?.havePassword" class="folder-icon folder-icon-lock" />
                     <FolderOutlined v-else class="folder-icon" />
                     <span class="folder-name">{{ folder.name }}</span>
                 </a>
