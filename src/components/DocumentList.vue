@@ -2,7 +2,7 @@
 import { ref, watch, h, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
-import { EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, UnlockOutlined, LockOutlined, BgColorsOutlined, DownloadOutlined, TagOutlined, OrderedListOutlined } from '@ant-design/icons-vue';
+import { EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, UnlockOutlined, LockOutlined, BgColorsOutlined, DownloadOutlined, TagOutlined } from '@ant-design/icons-vue';
 import { Modal, message } from 'ant-design-vue';
 // @ts-ignore
 import { saveAs } from 'file-saver';
@@ -1063,11 +1063,14 @@ onMounted(async () => {
     <template v-if="isSortByFilesByTagMode" key="0">
       <div v-for="(panel, index) in sortPanelData" :key="panel.id" style="margin-bottom: 20px;">
         <!-- 显示分类的颜色和名称 -->
-        <a-divider orientation="left" orientation-margin="0px" v-if="panel.id !== '0'">
-          <div style="display: flex; align-items: center;">
-            <h2>{{ panel.name }}</h2>
+        <div style="display: flex;justify-content: centera;align-items: center;margin: 30px 0px 10px 0px;" v-if="panel.id !== '0'">
+          <div style="display: flex; align-items: center;width: max-content; white-space: nowrap; padding-right: 10px;font-weight: 700;font-size: 20px">
+            {{ panel.name }}
           </div>
-        </a-divider>
+          <a-divider
+            style="height: 2px;min-width: none;">
+          </a-divider>
+        </div>
 
         <!-- 渲染文件夹类型 -->
         <Folder v-if="panel.list.folderLinks.length > 0" :folderLinks="panel.list.folderLinks"
