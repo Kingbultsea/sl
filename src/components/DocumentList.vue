@@ -849,11 +849,14 @@ const setPassword = async () => {
       filePaths,
       password,
     });
+    fetchHtmlAndExtractImages();
     alert('Password set successfully');
   } catch (error) {
     console.error('Error setting password:', error);
     alert('Failed to set password');
   }
+
+  toggleSelectMode();
 };
 
 // 移除密码
@@ -866,11 +869,14 @@ const removePassword = async () => {
     const response = await axios.post('/remove-password', {
       filePaths,
     });
+    fetchHtmlAndExtractImages();
     alert('Password removed successfully');
   } catch (error) {
     console.error('Error removing password:', error);
     alert('Failed to remove password');
   }
+
+  toggleSelectMode();
 };
 
 // 获取缩略图URL的方法
