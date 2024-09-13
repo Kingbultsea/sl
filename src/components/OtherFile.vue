@@ -3,6 +3,7 @@ import { defineProps, h } from 'vue';
 import { Checkbox, Button as aButton } from 'ant-design-vue';
 import { FileOutlined, DeleteOutlined } from '@ant-design/icons-vue';
 import axios from 'axios'; // 这里要注意axois 如果为单例的话会出现问题
+import { copyText } from '../util';
 
 // 定义文件类型
 interface FileItem {
@@ -65,8 +66,8 @@ const downloadFile = async (url: string, fileName: string) => {
         <div class="other-files">
             <div v-for="(file, index) in otherFiles" :key="file.url" class="file-wrapper"
                 @click="isSelectMode ? handleSelectFile(file.url, !selectedFiles.has(file.url), index) : null">
-                <div class="file-container" :class="{ 'high-line': file.tag?.id && file.tag?.id !== '0' }"
-                    :style="{ borderColor: file.tag?.color }">
+                <div class="file-container"
+                    :style="{ borderColor: file.tag?.color === '#ffffff' ? '' : file.tag?.color }">
                     <Checkbox v-if="isSelectMode"
                         @change="(e: any) => handleSelectFile(file.url, e.target.checked, index)" class="file-checkbox"
                         :checked="selectedFiles.has(file.url)" />
@@ -75,9 +76,13 @@ const downloadFile = async (url: string, fileName: string) => {
                         <div>{{ file.fileSize }}</div>
                     </div>
 
-                    <a type="link" v-if="file.tag?.havePassword || currentPassword === undefined" style="color: #1677ff" :href="file.url" target="_blank">直接下载</a>
-                    <a type="link" v-else style="color: #1677ff"
-                    @click.prevent="downloadFile(file.url, file.name)">blob下载</a>
+                    <a type="link" v-if="file.tag?.havePassword || currentPassword === undefined" style="color: #1677ff"
+                        :href="file.url" target="_blank">直接下载</a>
+                    <template v-else>
+                        <a type="link" style="color: #1677ff"
+                            @click.prevent="downloadFile(file.url, file.name)">blob下载</a>
+                    </template>
+                    <a class="file-name" @click="copyText(file.url)" style="color: rgb(184 240 255)">文件分享</a>
 
                     <div class="file-name">{{ file.name }}</div>
                     <div class="file-name">{{ file.lastModifiedText }}</div>

@@ -3,6 +3,7 @@ import { defineProps, h, watch, ref } from 'vue';
 import { Checkbox, Button as aButton, Image as aImage } from 'ant-design-vue';
 import { DeleteOutlined } from '@ant-design/icons-vue';
 import axios from 'axios';
+import { copyText } from '../util';
 
 // 定义文件类型
 interface ImageItem {
@@ -20,7 +21,6 @@ const LoadPreview = (url: string) => {
     loadingPreview.value.loading = true;
     fetchImageWithAuth(url).then(res => loadingPreview.value.value = res);
 }
-
 
 // 定义组件接收的 props
 const props = defineProps<{
@@ -82,23 +82,24 @@ watch(() => props.imageUrls, async (newUrls) => {
         <a-image-preview-group>
             <div v-for="(item, index) in imageUrls" :key="item.url" class="image-wrapper"
                 @click="(isSelectMode || isEditMode) ? handleSelectImage(item.url, !selectedImages.has(item.url), index) : null">
-                <div class="image-container" :class="{ 'high-line': item.tag?.id && item.tag?.id !== '0' }"
-                    :style="{ borderColor: item.tag?.color }">
+                <div class="image-container"
+                    :style="{ borderColor: item.tag?.color === '#ffffff' ? '' : item.tag?.color }">
                     <Checkbox v-if="isSelectMode"
-                        @change="(e: any) => handleSelectImage(item.url, e.target.checked, index)"
-                        class="image-checkbox" :checked="selectedImages.has(item.url)" />
+                    @change="(e: any) => handleSelectImage(item.url, e.target.checked, index)" class="image-checkbox"
+                    :checked="selectedImages.has(item.url)" />
 
-                    <!-- 如果是选择模式，则显示缩略图，否则显示大图 -->
-                    <a-image @click="LoadPreview(item.url)" :src="loadedImages[item.url]" width="200px"
-                        :preview="(isSelectMode || isEditMode) && loadingPreview.loading ? false : { src: loadingPreview.value }" />
+                <!-- 如果是选择模式，则显示缩略图，否则显示大图 -->
+                <a-image @click="LoadPreview(item.url)" :src="loadedImages[item.url]" width="200px"
+                    :preview="(isSelectMode || isEditMode) && loadingPreview.loading ? false : { src: loadingPreview.value }" />
 
-                    <div class="image-name">{{ item.name }}</div>
-                    <div class="image-name">{{ item.lastModifiedText }}</div>
-                    <div v-if="isEditMode" class="delete-button">
-                        <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
-                    </div>
+                <a class="file-name" @click="copyText(item.url)" style="color: rgb(184 240 255)">文件分享</a>
+                <div class="image-name">{{ item.name }}</div>
+                <div class="image-name">{{ item.lastModifiedText }}</div>
+                <div v-if="isEditMode" class="delete-button">
+                    <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
                 </div>
             </div>
-        </a-image-preview-group>
+    </div>
+    </a-image-preview-group>
     </div>
 </template>

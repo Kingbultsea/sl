@@ -26,8 +26,7 @@ const props = defineProps<{
     <!-- 文件夹 -->
     <div class="folders" v-if="folderLinks.length > 0">
         <div v-for="(folder, index) in folderLinks" :key="folder.url" class="folder-container"
-            :class="{ 'high-line': folder.tag?.id && folder.tag?.id !== '0' }"
-            :style="{ borderColor: folder.tag?.color }">
+            :style="{ borderColor: folder.tag?.color === '#ffffff' ? '' : folder.tag?.color }">
             <Checkbox v-if="isSelectMode" @change="(e: any) => handleSelectFolds(folder.url, e.target.checked, index)"
                 class="image-checkbox" :checked="selectedFold.has(folder.url)" />
 
