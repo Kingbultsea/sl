@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { defineProps, h } from 'vue';
 import { Checkbox, Button as aButton } from 'ant-design-vue';
-import { FileOutlined, DeleteOutlined } from '@ant-design/icons-vue';
+import { FileOutlined, DeleteOutlined, ShareAltOutlined } from '@ant-design/icons-vue';
 import axios from 'axios'; // 这里要注意axois 如果为单例的话会出现问题
 import { copyText } from '../util';
 
@@ -77,12 +77,14 @@ const downloadFile = async (url: string, fileName: string) => {
                     </div>
 
                     <a type="link" v-if="file.tag?.havePassword || currentPassword === undefined" style="color: #1677ff"
-                        :href="file.url" target="_blank">直接下载</a>
+                        :href="file.url" target="_blank">下载</a>
                     <template v-else>
                         <a type="link" style="color: #1677ff"
-                            @click.prevent="downloadFile(file.url, file.name)">blob下载</a>
+                            @click.prevent="downloadFile(file.url, file.name)">下载</a>
                     </template>
-                    <a class="file-name" @click="copyText(file.url)" style="color: rgb(184 240 255)">文件分享</a>
+                    <a class="file-name" @click="copyText(file.url)" style="color: rgb(184 240 255)">
+                        <ShareAltOutlined style="padding-right: 4px;" /> 文件分享
+                    </a>
 
                     <div class="file-name">{{ file.name }}</div>
                     <div class="file-name">{{ file.lastModifiedText }}</div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { defineProps, h, watch, ref } from 'vue';
 import { Checkbox, Button as aButton, Image as aImage } from 'ant-design-vue';
-import { DeleteOutlined } from '@ant-design/icons-vue';
+import { DeleteOutlined, ShareAltOutlined } from '@ant-design/icons-vue';
 import axios from 'axios';
 import { copyText } from '../util';
 
@@ -92,7 +92,7 @@ watch(() => props.imageUrls, async (newUrls) => {
                 <a-image @click="LoadPreview(item.url)" :src="loadedImages[item.url]" width="200px"
                     :preview="(isSelectMode || isEditMode) && loadingPreview.loading ? false : { src: loadingPreview.value }" />
 
-                <a class="file-name" @click="copyText(item.url)" style="color: rgb(184 240 255)">文件分享</a>
+                <a class="file-name" @click="copyText(item.url)" style="color: rgb(184 240 255)"><ShareAltOutlined style="padding-right: 4px;" />文件分享</a>
                 <div class="image-name">{{ item.name }}</div>
                 <div class="image-name">{{ item.lastModifiedText }}</div>
                 <div v-if="isEditMode" class="delete-button">
