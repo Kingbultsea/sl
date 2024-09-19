@@ -8,6 +8,7 @@ import fs from 'fs';
 import auth from 'http-auth'; // 添加 http-auth 依赖
 import { getIp } from './server-tool';
 import { isProtected } from './file-password';
+import { havePermission } from './file-permissions';
 
 
 const corsHeader = {
@@ -44,6 +45,7 @@ const protectedServer = http.createServer((req, res) => {
   const isThumbnail = parsedUrl.query.thumbnail === 'true'; // 通过查询参数判断是否需要缩略图
   const decodedPathname = decodeURIComponent(parsedUrl.pathname); // 解码路径
   const password = isProtected(decodedPathname);
+  const permission = havePermission(clientIp, decodedPathname);
 
   if (password) {
     const basicAuth = auth.basic({
@@ -67,7 +69,7 @@ const protectedServer = http.createServer((req, res) => {
       if (!reqAuth.headers.authorization) {
         console.log("没有验证头")
         // 如果没有提供验证信息，返回401并要求提供身份验证
-        resAuth.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Protected"' });
+        resAuth.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Protected"', ...corsHeader });
         resAuth.end('Authorization required');
         return;
       }
@@ -77,6 +79,10 @@ const protectedServer = http.createServer((req, res) => {
       // 成功通过身份验证后处理请求
       handleRequest(reqAuth, resAuth, isThumbnail, parsedUrl);
     })(req, res);
+  } else if (!permission) {
+    res.writeHead(403, { 'Content-Type': 'text/plain', ...corsHeader });
+    res.end('Access denied');
+    return;
   } else {
     // 对于其他路径，不需要进行身份验证
     handleRequest(req, res, isThumbnail, parsedUrl);

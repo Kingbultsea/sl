@@ -9,6 +9,7 @@ import { saveAs } from 'file-saver';
 import { useSpinningStore } from '../stores/spinningStore';
 import Folder from './Folder.vue';
 import Gallery from './Gallery.vue';
+import Permissions from './Permissions.vue';
 
 // @ts-ignore 这里组件类型莫名报错
 import OtherFile from './OtherFile.vue';
@@ -327,43 +328,57 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
 
   try {
     let response
-    let needAuth = false
+    let errorCode = 0;
+
     try {
       response = await axios.get(curUrl);
     } catch (error: any) {
-      // 这里需要解决cors问题
-      needAuth = true
+      if (error.response) {
+        console.log("HTTP 错误状态码:", error.response.status);
+        console.log("详细错误信息:", error.response.data);
+        errorCode = error.response.status;
+      } else {
+        console.log("其他错误:", error.message);
+      }
     }
 
-    if (needAuth) {
+    if (errorCode) {
       // 资源受保护，需要密码
-      console.log("资源需要密码");
+      if (errorCode == 401) {
+        // 如果存在密码，则不用再输入
+        if (currentPasswordMap.value[curUrl]) {
+          password = currentPasswordMap.value[curUrl];
+        } else {
+          // 定位bug;
+          password = prompt("请输入密码");
+        }
 
-      // 如果存在密码，则不用再输入
-      if (currentPasswordMap.value[curUrl]) {
-        password = currentPasswordMap.value[curUrl];
-      } else {
-        password = prompt("请输入密码");
+        if (password == null) {
+          router.back();
+          return;
+        }
+
+        // 将用户名和密码进行 Base64 编码
+        const token = btoa(`${username}:${password}`);
+
+        // 重新发起带密码的请求
+        const protectedResponse = await axios.get(curUrl, {
+          headers: {
+            'Authorization': `Basic ${token}` // 设置 Authorization 头
+          }
+        });
+        response = protectedResponse;
+
+        currentPassword.value = password;
+        currentPasswordMap.value[curUrl] = password;
       }
 
-      if (password == null) {
+      // 没有权限访问内容
+      if (errorCode == 403) {
+        message.error("当前没有权限访问该内容");
         router.back();
         return;
       }
-
-      // 将用户名和密码进行 Base64 编码
-      const token = btoa(`${username}:${password}`);
-
-      // 重新发起带密码的请求
-      const protectedResponse = await axios.get(curUrl, {
-        headers: {
-          'Authorization': `Basic ${token}` // 设置 Authorization 头
-        }
-      });
-      response = protectedResponse;
-
-      currentPassword.value = password;
-      currentPasswordMap.value[curUrl] = password;
     } else {
       currentPassword.value = undefined;
     }
@@ -454,7 +469,6 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     delete currentPasswordMap.value[curUrl]
     router.back();
     console.error('Error fetching HTML:', error);
-    alert("密码错误");
   }
 };
 
@@ -1053,6 +1067,8 @@ onMounted(async () => {
         <a-button :icon="h(UnlockOutlined)" class="a_button_class" @click="removePassword()">
           为文件解锁
         </a-button>
+
+        <Permissions :onSuccess="toggleSelectMode" :file-paths="[...selectedFiles, ...selectedImages, ...selectedFold]" />
       </template>
     </div>
 
@@ -1063,12 +1079,13 @@ onMounted(async () => {
     <template v-if="isSortByFilesByTagMode" key="0">
       <div v-for="(panel, index) in sortPanelData" :key="panel.id" style="margin-bottom: 20px;">
         <!-- 显示分类的颜色和名称 -->
-        <div style="display: flex;justify-content: centera;align-items: center;margin: 30px 0px 10px 0px;" v-if="panel.id !== '0'">
-          <div style="display: flex; align-items: center;width: max-content; white-space: nowrap; padding-right: 10px;font-weight: 700;font-size: 20px">
+        <div style="display: flex;justify-content: centera;align-items: center;margin: 30px 0px 10px 0px;"
+          v-if="panel.id !== '0'">
+          <div
+            style="display: flex; align-items: center;width: max-content; white-space: nowrap; padding-right: 10px;font-weight: 700;font-size: 20px">
             {{ panel.name }}
           </div>
-          <a-divider
-            style="height: 2px;min-width: none;">
+          <a-divider style="height: 2px;min-width: none;">
           </a-divider>
         </div>
 

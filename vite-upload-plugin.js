@@ -8,6 +8,7 @@ import "./http-server";
 import { setAttribute, getAttributeSync, removeAttribute } from 'fs-xattr'
 import { setPassword, removePassword } from './file-password.js';
 import { getIp } from './server-tool.js';
+import { setPermissions, removePermissions } from './file-permissions.js'
 
 const __dirname = path.resolve(); // 计算 __dirname
 const directory = path.join(__dirname, './images');
@@ -280,6 +281,7 @@ export default function uploadPlugin() {
             let tagId = "0"
             let tagColor = "#ffffff"
             let havePassword = false;
+            let permission = 0;
 
             try {
               tagColor = getAttributeSync(formatPath, 'tag.color').toString();
@@ -298,6 +300,10 @@ export default function uploadPlugin() {
             } catch {
 
             }
+
+            try {
+              permission = getAttributeSync(formatPath, 'user.permission').toString();
+            } catch { }
 
             console.log("文件标签获取：", filePath, tagId, tagColor, havePassword);
 
@@ -523,6 +529,24 @@ export default function uploadPlugin() {
 
         res.json({ ip: clientIp, whiteIpList: tagsData.whiteIpList, isInWhiteList: tagsData.whiteIpList.includes(clientIp) });
       });
+
+      // 设置文件或文件夹的权限
+      app.post('/set-permission', (req, res) => {
+        const { filePaths, level } = req.body;
+        if (!filePaths || !Array.isArray(filePaths) || filePaths.length === 0 || typeof level !== 'number') {
+          return res.status(400).send('Invalid file paths or permission level');
+        }
+
+        try {
+          setPermissions(filePaths, level); // 调用 setPermissions 函数为文件增加权限
+          res.send('Permissions set successfully for all files');
+        } catch (err) {
+          console.error('Error setting permissions:', err.message);
+          res.status(500).send('Failed to set permissions');
+        }
+      });
+
+      // todo, 设置ip权限
 
       server.middlewares.use(app);
     }

@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { tagsFilePath } from './vite-upload-plugin';
 import { setAttribute, getAttributeSync, removeAttribute } from 'fs-xattr'
+import { removeTrailingSlash } from './util.js';
 
 const __dirname = path.resolve(); // 计算 __dirname
 const directory = path.join(__dirname, './images');
@@ -35,9 +36,6 @@ export const removePassword = (filePaths) => {
         });
     });
 };
-
-// 去除路径末尾的斜杠（如果有）
-const removeTrailingSlash = (p) => p.endsWith(path.sep) ? p.slice(0, -1) : p;
 
 // 检查文件或文件夹是否受保护
 export

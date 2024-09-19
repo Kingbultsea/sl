@@ -28,6 +28,8 @@ declare module 'vue' {
     Folder: typeof import('./src/components/Folder.vue')['default']
     Gallery: typeof import('./src/components/Gallery.vue')['default']
     OtherFile: typeof import('./src/components/OtherFile.vue')['default']
+    Permissions: typeof import('./src/components/Permissions.vue')['default']
+    Premission: typeof import('./src/components/Premission.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     TopBar: typeof import('./src/components/TopBar.vue')['default']
