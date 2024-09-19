@@ -27,7 +27,6 @@ const props = defineProps<{ isDarkMode: boolean }>();
 // todo 按照目前的现有的结构，再弄一个上层父级的分类
 // { { id: 标签id, name: "标签名称", color: "标签颜色", list: { imageUrls: [], folderLinks: [], otherFiles: [] }  } }
 const sortPanelData = ref<{ id: string, name: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }[]>([]);
-const isInWhiteList = ref<boolean>(false); // 是否在ip白名单内
 const currentPasswordMap = ref<Record<string, string>>({}); // 记录当前文件夹层的密码
 const currentPassword = ref<string>(); // 记录当前文件夹层的密码
 
@@ -840,12 +839,6 @@ const sortItems = () => {
   }
 };
 
-// 获取ip
-const getIp = async () => {
-  axios.get("/get-ip").then(res => {
-    isInWhiteList.value = res.data.isInWhiteList;
-  })
-}
 
 // 设置密码
 const setPassword = async () => {
@@ -940,8 +933,6 @@ onMounted(async () => {
       // 恢复存储在sessionStorage中的数据
       currentPasswordMap.value = JSON.parse(storedPasswordMap);
     }
-
-    getIp();
 
     // const storedValue = localStorage.getItem('isSortByFilesByTagMode');
     // if (storedValue !== null) {
@@ -1059,7 +1050,7 @@ onMounted(async () => {
         </a-button>
       </a-dropdown>
 
-      <template v-if="(selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0) && isInWhiteList">
+      <template v-if="(selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0) && spinningStore.isInWhiteList">
         <a-button :icon="h(LockOutlined)" class="a_button_class" @click="setPassword()">
           为文件上锁
         </a-button>

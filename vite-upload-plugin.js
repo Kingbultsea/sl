@@ -8,12 +8,12 @@ import "./http-server";
 import { setAttribute, getAttributeSync, removeAttribute } from 'fs-xattr'
 import { setPassword, removePassword } from './file-password.js';
 import { getIp } from './server-tool.js';
-import { setPermissions, removePermissions } from './file-permissions.js'
+import { setPermissions } from './file-permissions.js'
 
 const __dirname = path.resolve(); // 计算 __dirname
 const directory = path.join(__dirname, './images');
 const maxBuffer = 1024 * 1024 * 300; // 设置缓冲区大小为 300MB
-export const tagsFilePath = path.join(__dirname, './tags.json');
+const tagsFilePath = path.join(__dirname, './tags.json');
 
 // 定义图片类型的扩展名
 const imageExtensions = ['.jpeg', '.jpg', '.png', '.gif', '.webp'];
@@ -546,7 +546,52 @@ export default function uploadPlugin() {
         }
       });
 
-      // todo, 设置ip权限
+      // todo 实现/get-permissions，即获取./tags.json的Permission字段
+      // 获取权限数据
+      app.get('/get-permissions', (req, res) => {
+        try {
+          if (fs.existsSync(tagsFilePath)) {
+            const tagsData = JSON.parse(fs.readFileSync(tagsFilePath, 'utf-8'));
+            res.json(tagsData.Permission || {});
+          } else {
+            res.json({});
+          }
+        } catch (err) {
+          console.error('Error reading permissions:', err);
+          res.status(500).send('Failed to get permissions');
+        }
+      });
+
+      // todo 实现/set-permissions，即修改./tags.json的Permission字段
+      // 设置权限数据
+      app.post('/set-permissions', (req, res) => {
+        const permissions = req.body;
+        if (typeof permissions !== 'object') {
+          return res.status(400).send('Invalid permissions data');
+        }
+
+        const clientIp = getIp(req.headers['x-forwarded-for'] || req.connection.remoteAddress);
+
+        let tagsData = [];
+        if (fs.existsSync(tagsFilePath)) {
+          const data = fs.readFileSync(tagsFilePath);
+          tagsData = JSON.parse(data);
+        }
+        console.log("当前ip在白名单内,", tagsData.whiteIpList.includes(clientIp));
+
+        try {
+          if (!tagsData.whiteIpList.includes(clientIp)) {
+            throw new Error("没有权限")
+          }
+
+          tagsData.Permission = permissions; // 更新权限字段
+          fs.writeFileSync(tagsFilePath, JSON.stringify(tagsData, null, 2), 'utf-8');
+          res.send('Permissions updated successfully');
+        } catch (err) {
+          console.error('Error setting permissions:', err);
+          res.status(500).send('Failed to set permissions');
+        }
+      });
 
       server.middlewares.use(app);
     }

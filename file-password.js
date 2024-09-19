@@ -1,6 +1,5 @@
 import path from 'path';
 import fs from 'fs';
-import { tagsFilePath } from './vite-upload-plugin';
 import { setAttribute, getAttributeSync, removeAttribute } from 'fs-xattr'
 import { removeTrailingSlash } from './util.js';
 

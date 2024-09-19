@@ -1,12 +1,27 @@
 // 权限系统，数值越大等级越高
 import path from 'path';
 import fs from 'fs';
-import { tagsFilePath } from './vite-upload-plugin';
 import { setAttribute, getAttributeSync, removeAttribute } from 'fs-xattr'
 import { removeTrailingSlash } from './util.js';
 
 const __dirname = path.resolve(); // 计算 __dirname
+const tagsFilePath = path.join(__dirname, './tags.json');
 const directory = path.join(__dirname, './images');
+
+// 读取 tags.json 文件
+let tags = JSON.parse(fs.readFileSync(tagsFilePath, 'utf-8'));
+
+// 监听 tags.json 文件的变化
+fs.watch(tagsFilePath, (eventType) => {
+    if (eventType === 'change') {
+        try {
+            console.log('检测到 tags.json 文件有变化，重新加载数据');
+            tags = JSON.parse(fs.readFileSync(tagsFilePath, 'utf-8'));
+        } catch (err) {
+            console.error('Error reloading tags.json:', err);
+        }
+    }
+});
 
 // 设置权限函数，数值越大等级越高
 export const setPermissions = (filePaths, level) => {
@@ -25,21 +40,6 @@ export const setPermissions = (filePaths, level) => {
         } catch (e) {
             console.log(e);
         }
-    });
-};
-
-// 删除权限函数
-export const removePermissions = (filePaths) => {
-    filePaths.forEach((filePath) => {
-        const fullPath = path.join(directory, filePath);
-
-        removeAttribute(fullPath, 'user.permission', (err) => {
-            if (err) {
-                console.error(`Error removing permission for ${filePath}:`, err);
-            } else {
-                console.log(`Permission removed for ${filePath}`);
-            }
-        });
     });
 };
 
@@ -63,8 +63,6 @@ export const havePermission = (ip, decodedPathname) => {
             return true; // 如果文件权限等级为 0，无需验证权限
         }
 
-        // 读取 tags.json 文件
-        const tags = JSON.parse(fs.readFileSync(tagsFilePath, 'utf-8'));
 
         // 检查是否有 Permission 字段，如果没有则添加
         if (!tags.Permission) {

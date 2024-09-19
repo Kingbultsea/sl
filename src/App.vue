@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import DocumentList from './components/DocumentList.vue';
 import TopBar from './components/TopBar.vue';
 import { useRoute } from 'vue-router';
@@ -34,6 +34,10 @@ const refreshDocumentList = () => {
     documentListRef.value.fetchHtmlAndExtractImages();
   }
 };
+
+onMounted(() => {
+  spinningStore.fetchWhiteListStatus();
+})
 
 </script>
 

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { defineProps, defineEmits, ref, onMounted } from 'vue';
+import PermissionsSetting from './PermissionsSetting.vue';
+import { useSpinningStore } from '../stores/spinningStore';
 
+const spinningStore = useSpinningStore();
 const props = defineProps<{ isDarkMode: boolean; uploadPath: string }>();
 const emit = defineEmits(['update:isDarkMode', 'refresh']);
 
@@ -29,7 +32,9 @@ onMounted(() => {
   <div class="top-bar">
     <span class="title">东馆Nas</span>
     <div class="actions">
-      <a-badge :dot="isBadgeVisible"  style="margin-right: 20px;">
+      <PermissionsSetting v-if="spinningStore.isInWhiteList" />
+
+      <a-badge :dot="isBadgeVisible" style="margin-right: 20px;">
         <a-button target="_blank" type="link"
           href="http://192.168.1.229:8089/%E4%B8%9C%E9%A6%86%E5%91%98%E5%B7%A5%E5%BF%85%E8%AF%BB%E6%89%8B%E5%86%8C.pdf"
           @click="handleBadgeClick">东馆员工必读手册</a-button>
