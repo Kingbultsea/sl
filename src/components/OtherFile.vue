@@ -62,7 +62,7 @@ const downloadFile = async (url: string, fileName: string) => {
 
 <template>
     <div>
-        <h3 v-if="otherFiles.length > 0" style="text-align: left;margin-top: 30px;">其他文件</h3>
+        <!-- <h3 v-if="otherFiles.length > 0" style="text-align: left;margin-top: 30px;">其他文件</h3> -->
         <div class="other-files">
             <div v-for="(file, index) in otherFiles" :key="file.url" class="file-wrapper"
                 @click="isSelectMode ? handleSelectFile(file.url, !selectedFiles.has(file.url), index) : null">
