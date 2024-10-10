@@ -293,6 +293,8 @@ const parseTimeStampFormat2 = (timestamp: number) => {
   // 使用 Intl.DateTimeFormat 进行格式化
   const formatter = new Intl.DateTimeFormat('zh-CN', options);
 
+  console.log(timestamp, '查看时间戳');
+
   // 将时间戳转换为 Date 对象
   const formattedDate = formatter.format(new Date(timestamp));
 
@@ -301,13 +303,33 @@ const parseTimeStampFormat2 = (timestamp: number) => {
 }
 
 const parseDate = (dateString: string) => {
+  // 定义中文月份到英文月份的映射
+  const months: { [key: string]: string } = {
+    "1月": "Jan",
+    "2月": "Feb",
+    "3月": "Mar",
+    "4月": "Apr",
+    "5月": "May",
+    "6月": "Jun",
+    "7月": "Jul",
+    "8月": "Aug",
+    "9月": "Sep",
+    "10月": "Oct",
+    "11月": "Nov",
+    "12月": "Dec"
+  };
+
   // 提取日、月、年和时间部分
   const [datePart, timePart] = dateString.split(' ');
   const [day, month, year] = datePart.split('-');
-  const monthEnglish = month;
+
+  // 获取对应的英文月份
+  const monthEnglish = months[month] || month; // 如果没有匹配到，则保留原来的月份
 
   // 构建有效的日期字符串
   const formattedDateString = `${day} ${monthEnglish} ${year} ${timePart}`;
+
+  // 返回时间戳
   return new Date(formattedDateString).getTime();
 };
 
@@ -402,6 +424,8 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     links.forEach((link, index) => {
       let fileName = link.textContent?.trim();
       let lastModifiedText = dates[index].textContent?.trim();
+
+      console.log("查看初始标签 是否出现问题", lastModifiedText);
 
       const lastModified = parseDate(lastModifiedText!);
 
@@ -1050,7 +1074,8 @@ onMounted(async () => {
         </a-button>
       </a-dropdown>
 
-      <template v-if="(selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0) && spinningStore.isInWhiteList">
+      <template
+        v-if="(selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0) && spinningStore.isInWhiteList">
         <a-button :icon="h(LockOutlined)" class="a_button_class" @click="setPassword()">
           为文件上锁
         </a-button>
@@ -1059,7 +1084,8 @@ onMounted(async () => {
           为文件解锁
         </a-button>
 
-        <Permissions :onSuccess="toggleSelectMode" :file-paths="[...selectedFiles, ...selectedImages, ...selectedFold]" />
+        <Permissions :onSuccess="toggleSelectMode"
+          :file-paths="[...selectedFiles, ...selectedImages, ...selectedFold]" />
       </template>
     </div>
 
