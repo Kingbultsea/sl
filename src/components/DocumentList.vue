@@ -354,18 +354,24 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     try {
       response = await axios.get(curUrl);
     } catch (error: any) {
-      if (error.response) {
-        console.log("HTTP 错误状态码:", error.response.status);
-        console.log("详细错误信息:", error.response.data);
-        errorCode = error.response.status;
-      } else {
-        console.log("其他错误:", error.message);
-      }
+      // console.log("完整错误对象:", error);
+      // if (error.response) {
+      //   console.log("HTTP 错误状态码:", error.response.status);
+      //   console.log("详细错误信息:", error.response.data);
+      //   errorCode = error.response.status;
+      // } else if (error.request) {
+      //   console.log("请求发出但无响应:", error.request, curUrl);
+      // } else {
+      //   console.log("其他错误:", error.message);
+      // }
+      errorCode = 401;
     }
 
     if (errorCode) {
+      console.log(errorCode, '错误code');
       // 资源受保护，需要密码
       if (errorCode == 401) {
+        console.log("401 http code");
         // 如果存在密码，则不用再输入
         if (currentPasswordMap.value[curUrl]) {
           password = currentPasswordMap.value[curUrl];
@@ -402,6 +408,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       }
     } else {
       currentPassword.value = undefined;
+      console.log("错误", errorCode);
     }
 
     searchValue.value = "";
