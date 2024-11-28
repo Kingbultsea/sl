@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, h, computed, onMounted } from 'vue';
+import { ref, watch, h, computed, onMounted, nextTick } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
 import { EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, UnlockOutlined, LockOutlined, BgColorsOutlined, DownloadOutlined, TagOutlined } from '@ant-design/icons-vue';
@@ -10,6 +10,7 @@ import { useSpinningStore } from '../stores/spinningStore';
 import Folder from './Folder.vue';
 import Gallery from './Gallery.vue';
 import Permissions from './Permissions.vue';
+import debounce from 'lodash/debounce';
 
 // @ts-ignore 这里组件类型莫名报错
 import OtherFile from './OtherFile.vue';
@@ -29,6 +30,7 @@ const props = defineProps<{ isDarkMode: boolean }>();
 const sortPanelData = ref<{ id: string, name: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }[]>([]);
 const currentPasswordMap = ref<Record<string, string>>({}); // 记录当前文件夹层的密码
 const currentPassword = ref<string>(); // 记录当前文件夹层的密码
+const loading = ref<1 | 2 | 3>(1); // 1初始化 2 loading 3完成
 
 // 每次currentPasswordMap改动时，存储到sessionStorage
 watch(currentPasswordMap, (newValue) => {
@@ -83,7 +85,7 @@ const sortFilesByTag = () => {
   // 将结果从小到大排序
   sortPanelData.value = Array.from(tagMap.values()).sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
 
-  console.log(sortPanelData.value, 'six');
+  // console.log(sortPanelData.value, 'six');
 };
 
 const ToggleIsSortByFilesByTagMode = () => {
@@ -216,7 +218,6 @@ const fetchTags = async (files: TypeFile[]) => {
     files.forEach((image, index) => {
       if (response.data[index].havePassword) {
         encryptedFiles.value.push(image.url);
-        console.log(image, '该文件有锁');
       }
       image.tag = response.data[index]; // 将返回的标签设置到对应的image
     });
@@ -228,7 +229,7 @@ const fetchTags = async (files: TypeFile[]) => {
   }
 };
 
-type TypeFile = { url: string, name: string, lastModified: number, fileSize: string, lastModifiedText?: string, tag?: TypeTagColor };
+type TypeFile = { url: string, name: string, lastModified: number, fileSize: string, lastModifiedText?: string, tag?: TypeTagColor, close?: boolean };
 const imageUrls = ref<TypeFile[]>([]);
 const folderLinks = ref<TypeFile[]>([]);
 const otherFiles = ref<TypeFile[]>([]);
@@ -292,8 +293,6 @@ const parseTimeStampFormat2 = (timestamp: number) => {
 
   // 使用 Intl.DateTimeFormat 进行格式化
   const formatter = new Intl.DateTimeFormat('zh-CN', options);
-
-  console.log(timestamp, '查看时间戳');
 
   // 将时间戳转换为 Date 对象
   const formattedDate = formatter.format(new Date(timestamp));
@@ -455,7 +454,7 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
       } else {
         const extension = fileName!.split('.').pop()?.toLowerCase();
         if (validImageExtensions.includes(`.${extension}`)) {
-          currentLinks.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize, lastModifiedText });
+          currentLinks.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize, lastModifiedText, close: true });
         } else {
           otherFiles.value.push({ url: curUrl + '/' + fileName, name: fileName!, lastModified, fileSize, lastModifiedText });
         }
@@ -472,23 +471,24 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     }
 
     // 定时推送数据到 imageUrls，每0.5秒推送10个数据
-    const fn = () => {
+    const fn = async () => {
       const batchSize = 40; // 每次推送的数量
       if (index < currentLinks.length) {
+        loading.value = 2;
         const nextBatch = currentLinks.slice(index, index + batchSize);
+
         // 直接修改原对象指针
-        fetchTags(nextBatch).then(() => {
-          console.log(nextBatch);
+        await fetchTags(nextBatch).then(() => {
           imageUrls.value.push(...nextBatch);
           index += batchSize;
-          timeoutId = setTimeout(fn(), 300);
         });
-      } else {
-        // 完成  isSortByFilesByTagMode 都还没更新，就已经去触发这个了，所以不会渲染
 
+        await fn();
+      } else {
+        loading.value = 3;
+        // 完成  isSortByFilesByTagMode 都还没更新，就已经去触发这个了，所以不会渲染
         sortFilesByTag();
         sortItems(); // 加载数据后进行排序
-        // clearInterval(intervalId); // 所有数据推送完成后清除 interval
       }
       return fn;
     };
@@ -500,11 +500,15 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     router.back();
     console.error('Error fetching HTML:', error);
   }
+
+  console.log("请求完成")
 };
 
 // 导航到指定文件夹
-const navigateToFolder = (folderName: string) => {
-  router.push(`${folderPath.value}${folderPath.value === '/' ? '' : '/'}${folderName}`);
+const navigateToFolder = (folderName: string, useRouter: boolean = true) => {
+  const path = `${folderPath.value}${folderPath.value === '/' ? '' : '/'}${folderName}`;
+  useRouter && router.push(`${folderPath.value}${folderPath.value === '/' ? '' : '/'}${folderName}`);
+  return path;
 };
 
 const selectImageIndex = ref<number[]>([]);
@@ -932,13 +936,37 @@ const getThumbnailUrl = (url: string): string => {
 // 当下拉选择的值变化，需要重新排序
 watch(sortOption, sortItems, { flush: 'post', immediate: false });
 
-watch(() => route.params.folderPath, (newPath) => {
+// 用于存储滚动位置的对象（可以持久化到 localStorage 或 Vuex）
+const scrollPositions = ref<Record<string, number>>({});
+
+// 保存滚动位置
+const saveScrollPosition = debounce(() => {
+  const currentPath = route.fullPath;
+  scrollPositions.value[currentPath] = window.scrollY;
+  console.log(`Saved scroll position for ${currentPath}:`, window.scrollY);
+}, 300); // 300ms 的防抖间隔
+
+// 恢复滚动位置
+const restoreScrollPosition = () => {
+  const currentPath = route.fullPath;
+  const savedPosition = scrollPositions.value[currentPath];
+  if (savedPosition !== undefined) {
+    window.scrollTo(0, savedPosition);
+    console.log(`Restored scroll position for ${currentPath}:`, savedPosition);
+  }
+};
+
+watch(() => route.params.folderPath, async (newPath) => {
   if (Array.isArray(newPath)) {
     newPath = newPath.join('/');
   }
   folderPath.value = '/' + newPath;
 
-  fetchHtmlAndExtractImages();
+  await fetchHtmlAndExtractImages();
+  await nextTick();
+  setTimeout(() => {
+    restoreScrollPosition();
+  }, 400);
 });
 
 defineExpose({
@@ -955,6 +983,9 @@ const HomeClick = () => {
 }
 
 onMounted(async () => {
+  console.log("监听滚动事件");
+  window.addEventListener("scroll", saveScrollPosition);
+
   try {
     const response = await axios.get('/get-tags');
     baseTags.value = response.data.tags; // 假设服务器返回的数据是包含标签的数组
@@ -1120,7 +1151,7 @@ onMounted(async () => {
           :confirmDeleteFolder="confirmDeleteFolder" />
 
         <!-- 渲染图片库类型 -->
-        <Gallery v-if="panel.list.imageUrls.length > 0" :currentPassword="currentPassword"
+        <Gallery :loading="loading" v-if="panel.list.imageUrls.length > 0" :currentPassword="currentPassword"
           :imageUrls="panel.list.imageUrls" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
           :selectedImages="selectedImages" :handleSelectImage="handleSelectImage" :getThumbnailUrl="getThumbnailUrl"
           :confirmDeleteImage="confirmDeleteImage" />
@@ -1138,7 +1169,7 @@ onMounted(async () => {
         :editFolderName="editFolderName" :confirmDeleteFolder="confirmDeleteFolder" />
 
       <!-- 图片库类型 -->
-      <Gallery :imageUrls="imageUrls" :currentPassword="currentPassword" :isSelectMode="isSelectMode"
+      <Gallery :loading="loading" :imageUrls="imageUrls" :currentPassword="currentPassword" :isSelectMode="isSelectMode"
         :isEditMode="isEditMode" :selectedImages="selectedImages" :handleSelectImage="handleSelectImage"
         :getThumbnailUrl="getThumbnailUrl" :confirmDeleteImage="confirmDeleteImage" />
 

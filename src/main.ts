@@ -4,6 +4,7 @@ import App from './App.vue'
 import { createRouter, createWebHistory } from 'vue-router';
 import DocumentList from './components/DocumentList.vue';
 import { createPinia } from 'pinia';
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 
 const routes = [
     {

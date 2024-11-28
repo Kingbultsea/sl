@@ -16,7 +16,7 @@ const props = defineProps<{
     isEditMode: boolean;
     selectedFold: Set<string>;
     handleSelectFolds: (url: string, checked: boolean, index: number) => void;
-    navigateToFolder: (folderName: string) => void;
+    navigateToFolder: (folderName: string, useRouter?: boolean) => string;
     editFolderName: (folderName: string, index: number) => void;
     confirmDeleteFolder: (folderName: string, havePassword: boolean) => void;
 }>();
@@ -32,7 +32,7 @@ const props = defineProps<{
 
             <div style="display: flex; justify-content: space-between; padding: 1em;">
                 <a @click.prevent="isSelectMode ? handleSelectFolds(folder.url, !selectedFold.has(folder.url), index) : navigateToFolder(folder.name)"
-                    href="#">
+                    :href="navigateToFolder(folder.name, false)">
                     <EyeInvisibleOutlined v-if="folder.tag?.havePassword" class="folder-icon folder-icon-lock" />
                     <FolderOutlined v-else class="folder-icon" />
                     <span class="folder-name">{{ folder.name }}</span>
