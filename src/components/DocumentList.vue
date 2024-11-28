@@ -97,17 +97,7 @@ const sortFilesByTag = () => {
 
     return orderA - orderB; // 按照 commonSortOrder 升序排列
   });
-
-  console.log(sortPanelData.value, 'six');
 };
-
-const ToggleIsSortByFilesByTagMode = () => {
-  isSortByFilesByTagMode.value = !isSortByFilesByTagMode.value;
-
-  if (isSortByFilesByTagMode.value) {
-    sortFilesByTag();
-  }
-}
 
 type TypeTagColor = { color: string, name: string, id: string, commonSortOrder: number }
 const baseColors = ref<string[]>(["#ff6b57", "#ff9100", "#ffda00", "#20ce0a", "#508dfe", "#a260ff", "#ffffff"]);
@@ -352,6 +342,7 @@ let timeoutId: any; // 用于存储 setInterval 的 ID
 let currentLinks: any[] = []; // 存储当前的链接列表
 
 const fetchHtmlAndExtractImages = async (): Promise<void> => {
+  spinningStore.setSpinning(true, "Loading");
   const curUrl = `${IMAGE_BASE_URL}${folderPath.value}`;
 
   let username = 'admin';
@@ -517,6 +508,9 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
   }
 
   console.log("请求完成")
+  setTimeout(() => {
+    spinningStore.setSpinning(false, "Loading");
+  }, 300)
 };
 
 // 导航到指定文件夹
@@ -1145,11 +1139,10 @@ onMounted(async () => {
     <template v-if="isSortByFilesByTagMode" key="0">
       <div v-for="(panel, index) in sortPanelData" :key="panel.id" style="margin-bottom: 20px;">
         <!-- 显示分类的颜色和名称 -->
-        <div style="display: flex;justify-content: centera;align-items: center;margin: 30px 0px 10px 0px;"
-          v-if="panel.id !== '0'">
+        <div style="display: flex;justify-content: centera;align-items: center;margin: 30px 0px 10px 0px;">
           <div
             style="display: flex; align-items: center;width: max-content; white-space: nowrap; padding-right: 10px;font-weight: 700;font-size: 20px">
-            {{ panel.name }}
+            {{ panel.id === '0' ? "默认" : panel.name }}
           </div>
           <a-divider style="height: 2px;min-width: none;">
           </a-divider>
