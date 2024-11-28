@@ -92,7 +92,7 @@ const handleDragOver = (event: DragEvent) => {
 <template>
     <!-- 文件夹 -->
     <div class="folders" v-if="localFolderLinks.length > 0">
-        <div v-for="(folder, index) in localFolderLinks" :key="folder.url" class="folder-container" draggable="true"
+        <div v-for="(folder, index) in localFolderLinks" :key="index" class="folder-container" draggable="true"
             @dragstart="handleDragStart(index)" @dragover="handleDragOver" @drop="handleDrop($event, index)"
             :style="{ borderColor: folder.tag?.color === '#ffffff' ? '' : folder.tag?.color }">
             <Checkbox v-if="isSelectMode" @change="(e: any) => handleSelectFolds(folder.url, e.target.checked, index)"
@@ -103,7 +103,7 @@ const handleDragOver = (event: DragEvent) => {
                     :href="navigateToFolder(folder.name, false)">
                     <EyeInvisibleOutlined v-if="folder.tag?.havePassword" class="folder-icon folder-icon-lock" />
                     <FolderOutlined v-else class="folder-icon" />
-                    <span class="folder-name">{{ folder.name }} {{ folder.tag?.commonSortOrder }}</span>
+                    <span class="folder-name">{{ folder.name }}</span>
                 </a>
                 <div>
                     <a-button v-if="isEditMode" type="link" :icon="h(EditOutlined)"

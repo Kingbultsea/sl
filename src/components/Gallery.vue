@@ -23,7 +23,7 @@ const InitialObserver = () => {
                 const src = valueMatch ? valueMatch[1] : null; // 提取动态 `src`
 
                 if (entry.isIntersecting && src != null) {
-                    if (!entry.target.getAttribute("src"))
+                    // if (!entry.target.getAttribute("src"))
                         entry.target.setAttribute("src", await fetchImageWithAuth(src));
                 }
             });
