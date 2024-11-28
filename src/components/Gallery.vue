@@ -15,16 +15,17 @@ const InitialObserver = () => {
     observer.value = new IntersectionObserver(
         (entries) => {
             entries.forEach(async (entry: any) => {
-                const className = entry.target.className;
 
-                // 动态生成正则表达式，匹配 `${componentID}-value_*`
-                const valueRegex = new RegExp(`${componentID.value}-value_([^\\s]+)`);
-                const valueMatch = className.match(valueRegex);
-                const src = valueMatch ? valueMatch[1] : null; // 提取动态 `src`
+                if (entry.isIntersecting) {
+                    const className = entry.target.className;
 
-                if (entry.isIntersecting && src != null) {
-                    // if (!entry.target.getAttribute("src"))
-                        entry.target.setAttribute("src", await fetchImageWithAuth(src));
+                    // 动态生成正则表达式，匹配 `${componentID}-value_*`
+                    const valueRegex = new RegExp(`${componentID.value}-value_([^\\s]+)`);
+                    const valueMatch = className.match(valueRegex);
+                    const src = valueMatch ? valueMatch[1] : null; // 提取动态 `src`
+
+                    if (src)
+                        fetchImageWithAuth(src).then(res => entry.target.setAttribute("src", res));
                 }
             });
         },
