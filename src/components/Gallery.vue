@@ -125,22 +125,14 @@ const clearImageCache = () => {
 // 监听 imageUrls 的变化
 watch(() => props.imageUrls, async (newUrls) => {
     InitialObserver();
-    console.log(`新的: ${newUrls.length}`);
     // 优化
     setTimeout(() => {
         for (const [index, item] of newUrls.entries()) {
-            // if (!loadedImages.value[item.url]) {
-            //     const url = props.getThumbnailUrl(item.url);
-            //     const imageUrl = await fetchImageWithAuth(url);
-            //     const previewUrl = await fetchImageWithAuth(item.url);
-            //     loadedImages.value[item.url] = { src: imageUrl, preview: previewUrl };
-            //     activeList.value[index] = true;
-            // }
             const element = document.querySelector(`.${componentID.value}-index_${index}`) || undefined;
             if (element)
                 observer.value!.observe(element);
         }
-    }, 500)
+    }, 100)
 }, { immediate: true });
 
 // watch(() => props.loading, () => {

@@ -96,7 +96,7 @@ const ToggleIsSortByFilesByTagMode = () => {
   }
 }
 
-type TypeTagColor = { color: string, name: string, id: string }
+type TypeTagColor = { color: string, name: string, id: string, commonSortOrder: number }
 const baseColors = ref<string[]>(["#ff6b57", "#ff9100", "#ffda00", "#20ce0a", "#508dfe", "#a260ff", "#ffffff"]);
 const baseTags = ref<TypeTagColor[]>([]);
 const tagSearchValue = ref('');
@@ -120,7 +120,8 @@ const createTag = async () => {
     const newTag = {
       color: "",
       name: tagSearchValue.value.trim(),
-      id: Date.now().toString() // 生成唯一的ID
+      id: Date.now().toString(), // 生成唯一的ID
+      commonSortOrder: 0,
     };
 
     try {
@@ -219,6 +220,7 @@ const fetchTags = async (files: TypeFile[]) => {
       if (response.data[index].havePassword) {
         encryptedFiles.value.push(image.url);
       }
+
       image.tag = response.data[index]; // 将返回的标签设置到对应的image
     });
 

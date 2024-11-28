@@ -9,6 +9,7 @@ import { setAttribute, getAttributeSync, removeAttribute } from 'fs-xattr'
 import { setPassword, removePassword } from './file-password.js';
 import { getIp } from './server-tool.js';
 import { setPermissions } from './file-permissions.js'
+import { setSortOrder } from './file-common.js'
 
 const __dirname = path.resolve(); // 计算 __dirname
 const directory = path.join(__dirname, './images');
@@ -281,6 +282,7 @@ export default function uploadPlugin() {
             let tagId = "0"
             let tagColor = "#ffffff"
             let havePassword = false;
+            let commonSortOrder = 0;
             let permission = 0;
 
             try {
@@ -291,6 +293,12 @@ export default function uploadPlugin() {
 
             try {
               tagId = getAttributeSync(formatPath, 'tag.id').toString();
+            } catch {
+
+            }
+
+            try {
+              commonSortOrder = +getAttributeSync(formatPath, 'common.sortOrder');
             } catch {
 
             }
@@ -315,6 +323,7 @@ export default function uploadPlugin() {
                 name: orginTagData.name,
                 color: tagColor, // orginTagData.color,
                 havePassword, // 是否拥有密码
+                commonSortOrder
               };
             } else {
               removeAttribute(formatPath, 'tag.id').catch(e => {
@@ -543,6 +552,23 @@ export default function uploadPlugin() {
         } catch (err) {
           console.error('Error setting permissions:', err.message);
           res.status(500).send('Failed to set permissions');
+        }
+      });
+
+      app.post('/set-tag-sort', (req, res) => {
+        const { files } = req.body;
+        if (!files || !Array.isArray(files) || files.length === 0) {
+          return res.status(400).send('Invalid file paths');
+        }
+
+        try {
+          for (let i of files) {
+            setSortOrder(i.path, i.sortOrder); // 调用 setPermissions 函数为文件增加权限
+          }
+          res.send('SortOrder set successfully for all files');
+        } catch (err) {
+          console.error('Error setting sortorder:', err.message);
+          res.status(500).send('Failed to set sortorder');
         }
       });
 
