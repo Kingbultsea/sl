@@ -2,6 +2,7 @@
 import { defineProps, defineEmits, ref, onMounted } from 'vue';
 import PermissionsSetting from './PermissionsSetting.vue';
 import { useSpinningStore } from '../stores/spinningStore';
+import TagSetting from './TagSetting.vue';
 
 const spinningStore = useSpinningStore();
 const props = defineProps<{ isDarkMode: boolean; uploadPath: string }>();
@@ -33,6 +34,7 @@ onMounted(() => {
     <span class="title">东馆Nas</span>
     <div class="actions">
       <PermissionsSetting v-if="spinningStore.isInWhiteList" />
+      <TagSetting />
 
       <a-badge :dot="isBadgeVisible" style="margin-right: 20px;">
         <a-button target="_blank" type="link"

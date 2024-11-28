@@ -25,6 +25,7 @@ declare module 'vue' {
     ASwitch: typeof import('ant-design-vue/es')['Switch']
     ATable: typeof import('ant-design-vue/es')['Table']
     AUpload: typeof import('ant-design-vue/es')['Upload']
+    copy: typeof import('./src/components/PermissionsSetting copy.vue')['default']
     DocumentList: typeof import('./src/components/DocumentList.vue')['default']
     Folder: typeof import('./src/components/Folder.vue')['default']
     Gallery: typeof import('./src/components/Gallery.vue')['default']
@@ -34,6 +35,7 @@ declare module 'vue' {
     Premission: typeof import('./src/components/Premission.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    TagSetting: typeof import('./src/components/TagSetting.vue')['default']
     TopBar: typeof import('./src/components/TopBar.vue')['default']
   }
 }

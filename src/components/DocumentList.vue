@@ -51,7 +51,7 @@ const sortFilesByTag = () => {
     console.log("按照颜色排序");
     return;
   }
-  const tagMap = new Map<string, { id: string, name: string, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }>();
+  const tagMap = new Map<string, { id: string, name: string, commonSortOrder?: number, list: { imageUrls: TypeFile[], folderLinks: TypeFile[], otherFiles: TypeFile[] } }>();
 
   const processFile = (file: TypeFile, type: keyof typeof sortPanelData.value[0]['list']) => {
     const { id = "0", name = "", color = "" } = file.tag || {};
@@ -79,13 +79,26 @@ const sortFilesByTag = () => {
   // 处理 otherFiles
   otherFiles.value.forEach(file => processFile(file, 'otherFiles'));
 
-  // 将结果转换为数组
-  // sortPanelData.value = Array.from(tagMap.values());
+  // 完善：从 baseTags 中找到对应的 commonSortOrder，并设置到 tagMap
+  tagMap.forEach((tagEntry, id) => {
+    const matchingTag = baseTags.value.find((tag) => tag.id === id);
+    if (matchingTag) {
+      tagEntry.commonSortOrder = matchingTag.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
+    } else {
+      tagEntry.commonSortOrder = Number.MAX_SAFE_INTEGER; // 未定义的放到最后
+    }
+  });
 
   // 将结果从小到大排序
-  sortPanelData.value = Array.from(tagMap.values()).sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
+  sortPanelData.value = Array.from(tagMap.values()).sort((a: any, b: any) => {
+    // 如果 commonSortOrder 存在，则按其排序
+    const orderA = a.commonSortOrder ?? Number.MAX_SAFE_INTEGER; // 未定义的排序值放到最后
+    const orderB = b.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
 
-  // console.log(sortPanelData.value, 'six');
+    return orderA - orderB; // 按照 commonSortOrder 升序排列
+  });
+
+  console.log(sortPanelData.value, 'six');
 };
 
 const ToggleIsSortByFilesByTagMode = () => {
@@ -1062,10 +1075,6 @@ onMounted(async () => {
         <a-select-option value="date-asc">日期降序</a-select-option>
         <a-select-option value="date-desc">日期升序</a-select-option>
       </a-select>
-
-      <!-- <a-button :icon="h(OrderedListOutlined)" class="a_button_class" @click="ToggleIsSortByFilesByTagMode">
-        {{ isSortByFilesByTagMode ? "取消" : "按" }}颜色分类
-      </a-button> -->
 
       <a-dropdown trigger="click" v-if="selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0">
         <template #overlay>

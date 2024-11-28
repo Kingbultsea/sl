@@ -156,6 +156,33 @@ export default function uploadPlugin() {
         res.send('Tag created successfully');
       });
 
+      app.post('/config-tag', (req, res) => {
+        const tagsList = req.body.tags;
+        if (!tagsList) {
+          return res.status(400).send('Invalid tag data');
+        }
+
+        let tagsData = [];
+
+        if (fs.existsSync(tagsFilePath)) {
+          const data = fs.readFileSync(tagsFilePath);
+          tagsData = JSON.parse(data);
+        }
+
+        // tagsData.tags.push(newTag);
+        // 更新现有标签数据
+        tagsList.forEach((updatedTag) => {
+          const existingTagIndex = tagsData.tags.findIndex(tag => tag.id === updatedTag.id);
+          if (existingTagIndex !== -1) {
+            // 如果标签已存在，更新其属性
+            tagsData.tags[existingTagIndex].commonSortOrder = updatedTag.commonSortOrder;
+          }
+        });
+
+        fs.writeFileSync(tagsFilePath, JSON.stringify(tagsData, null, 2));
+        res.send('Tag created successfully');
+      });
+
       // 删除标签
       app.post('/delete-tag', (req, res) => {
         const tagId = req.body.id;
