@@ -10,6 +10,7 @@ import { setPassword, removePassword } from './file-password.js';
 import { getIp } from './server-tool.js';
 import { setPermissions } from './file-permissions.js'
 import { setSortOrder } from './file-common.js'
+import { Worker } from 'worker_threads';
 
 const __dirname = path.resolve(); // 计算 __dirname
 const directory = path.join(__dirname, './images');
@@ -85,16 +86,44 @@ export default function uploadPlugin() {
 
       // 文件上传处理
       app.post('/upload', upload.array('files', 10), (req, res) => {
-        req.files.forEach(file => {
-          const decodedFileName = decodeURIComponent(file.originalname);
-          const filePath = path.join(file.destination, decodedFileName);
-          fs.renameSync(file.path, filePath); // 重命名文件以确保文件名正确
+        // req.files.forEach(file => {
+        //   const decodedFileName = decodeURIComponent(file.originalname);
+        //   const filePath = path.join(file.destination, decodedFileName);
+        //   fs.renameSync(file.path, filePath); // 重命名文件以确保文件名正确
+        // });
+
+        // // todo 如果重新上传，上了锁的文件，（文件级别，文件夹不用处理，有锁的就默认覆盖）
+
+
+        // res.send('Files uploaded successfully');
+        const uploadPath = path.join(__dirname, './images', req.body.uploadPath || '');
+
+        const worker = new Worker(path.resolve(__dirname, './upload-worker.js'), {
+          workerData: {
+            files: req.files,
+            uploadPath,
+          },
         });
 
-        // todo 如果重新上传，上了锁的文件，（文件级别，文件夹不用处理，有锁的就默认覆盖）
+        worker.on('message', (message) => {
+          if (message.success) {
+            res.send(message.message);
+          } else {
+            res.status(500).send(message.message);
+          }
+        });
 
+        worker.on('error', (error) => {
+          console.error('Worker error:', error);
+          res.status(500).send('Worker encountered an error');
+        });
 
-        res.send('Files uploaded successfully');
+        worker.on('exit', (code) => {
+          if (code !== 0) {
+            console.error(`Worker stopped with exit code ${code}`);
+            res.status(500).send('Worker stopped unexpectedly');
+          }
+        });
       });
 
       // 创建文件夹处理

@@ -214,7 +214,7 @@ onBeforeUnmount(() => {
 <template>
     <div class="gallery">
         <ImagePreviewGroup :preview="{ current: 1 }">
-            <div v-for="(item, index) in imageUrls" :key="index" class="image-wrapper"
+            <div v-for="(item, index) in imageUrls" :key="item.name" class="image-wrapper"
                 @click="(isSelectMode || isEditMode) ? handleSelectImage(item.url, !selectedImages.has(item.url), index) : null">
                 <div class="image-container"
                     :style="{ borderColor: item.tag?.color === '#ffffff' ? '' : item.tag?.color }">

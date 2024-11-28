@@ -156,7 +156,6 @@ const setFileColor = async (color: string) => {
 
   try {
     await axios.post('/set-file-color', { files: filesToTag });
-    console.log('Tags set successfully for selected files');
     message.success("设置成功");
 
     fetchHtmlAndExtractImages();
@@ -177,7 +176,6 @@ const selectTag = async (id: string) => {
 
   try {
     await axios.post('/set-tags', { files: filesToTag });
-    console.log('Tags set successfully for selected files');
     message.success("设置成功");
 
     fetchHtmlAndExtractImages();
@@ -436,8 +434,6 @@ const fetchHtmlAndExtractImages = async (): Promise<void> => {
     links.forEach((link, index) => {
       let fileName = link.textContent?.trim();
       let lastModifiedText = dates[index].textContent?.trim();
-
-      console.log("查看初始标签 是否出现问题", lastModifiedText);
 
       const lastModified = parseDate(lastModifiedText!);
 
@@ -992,7 +988,6 @@ const HomeClick = () => {
 }
 
 onMounted(async () => {
-  console.log("监听滚动事件");
   window.addEventListener("scroll", saveScrollPosition);
 
   try {
