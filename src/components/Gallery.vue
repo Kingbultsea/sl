@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { defineProps, h, watch, ref, onMounted, onBeforeUnmount } from 'vue';
-import { Checkbox, Button as aButton, Image as aImage, ImagePreviewGroup } from 'ant-design-vue';
+import { Checkbox, Button as aButton, Image as aImage, ImagePreviewGroup, Modal, message } from 'ant-design-vue';
 import { DeleteOutlined, ShareAltOutlined } from '@ant-design/icons-vue';
 import axios from 'axios';
 import { copyText } from '../util';
@@ -8,6 +8,10 @@ import { copyText } from '../util';
 // 定义组件内的唯一 ID
 const componentID = ref(""); // 生成唯一 ID
 let observer = ref<IntersectionObserver | null>(null);
+
+// 本地副本，用于存储排序后的图片列表
+const localImageUrls = ref<ImageItem[]>([]);
+
 const InitialObserver = () => {
     if (observer.value !== null) {
         return;
@@ -15,7 +19,6 @@ const InitialObserver = () => {
     observer.value = new IntersectionObserver(
         (entries) => {
             entries.forEach(async (entry: any) => {
-
                 if (entry.isIntersecting) {
                     const className = entry.target.className;
 
@@ -40,7 +43,7 @@ interface ImageItem {
     lastModified: number;
     fileSize: string;
     lastModifiedText?: string;
-    tag?: { color: string, name: string, id: string };
+    tag?: { color: string, name: string, id: string, commonSortOrder?: number };
     close?: boolean;
 }
 
@@ -50,10 +53,8 @@ const LoadPreview = (url: string) => {
     loadingPreview.value.loading = true;
     fetchImageWithAuth(url).then(res => {
         if (res) {
-            // 获取第一个 .ant-image-preview-img 元素
             const previewImg = document.querySelector('.ant-image-preview-img');
             if (previewImg) {
-                // 修改 src 属性为 res
                 (previewImg as HTMLImageElement).src = res;
             } else {
                 console.warn('No .ant-image-preview-img element found in the DOM.');
@@ -79,31 +80,48 @@ const props = defineProps<{
     loading: 1 | 2 | 3;
 }>();
 
-const imageCache = new Map<string, string>(); // 用于存储缓存的图片
+// 本地排序逻辑
+const sortImageUrls = () => {
+    localImageUrls.value = [...props.imageUrls].sort((a, b) => {
+        const orderA = a.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
+        const orderB = b.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
+        return orderA - orderB;
+    });
+
+    setTimeout(() => {
+        for (const [index, item] of localImageUrls.value.entries()) {
+            const element = document.querySelector(`.${componentID.value}-index_${index}`) || undefined;
+            if (element) {
+                // 先取消监听，避免重复监听
+                observer.value!.unobserve(element);
+                observer.value!.observe(element);
+            }
+        }
+    }, 100)
+};
+
+// 监听 props.imageUrls 变化，重新排序
+watch(() => props.imageUrls, sortImageUrls, { immediate: true });
+
+const imageCache = new Map<string, string>();
 
 const fetchImageWithAuth = async (imageUrl: string): Promise<string> => {
     try {
-        // 如果缓存中已经存在该图片的 Blob URL，则直接返回
         if (imageCache.has(imageUrl)) {
-            return imageCache.get(imageUrl)!; // 使用非空断言，表示值肯定存在
+            return imageCache.get(imageUrl)!;
         }
 
         const headers: Record<string, string> = {};
-
-        // 判断是否存在密码
         if (props.currentPassword) {
             headers['Authorization'] = `Basic ${btoa('admin:' + props.currentPassword)}`;
         }
 
         const response = await axios.get(imageUrl, {
-            responseType: 'blob', // 获取图片为二进制数据
-            headers, // 动态设置请求头
+            responseType: 'blob',
+            headers,
         });
 
-        // 将 Blob 数据转换为本地 Blob URL
         const blobUrl = URL.createObjectURL(response.data);
-
-        // 将结果存入缓存
         imageCache.set(imageUrl, blobUrl);
 
         return blobUrl;
@@ -114,107 +132,88 @@ const fetchImageWithAuth = async (imageUrl: string): Promise<string> => {
     return '';
 };
 
-// 添加一个方法，用于清除缓存（根据需要调用）
 const clearImageCache = () => {
     imageCache.forEach((value) => {
-        URL.revokeObjectURL(value); // 释放 Blob URL 占用的内存
+        URL.revokeObjectURL(value);
     });
     imageCache.clear();
 };
 
-// 在组件挂载时加载所有图片
-// 监听 imageUrls 的变化
-watch(() => props.imageUrls, async (newUrls) => {
-    InitialObserver();
-    // 优化
-    setTimeout(() => {
-        for (const [index, item] of newUrls.entries()) {
-            const element = document.querySelector(`.${componentID.value}-index_${index}`) || undefined;
-            if (element)
-                observer.value!.observe(element);
-        }
-    }, 100)
-}, { immediate: true });
+// 拖拽相关
+const dragIndex = ref<number | null>(null);
 
-// watch(() => props.loading, () => {
-//     console.log(props.loading, 'loading');
-//     if (props.loading === 3) {
-//         const wrappers = document.querySelectorAll('.' + componentID.value);
-//         wrappers.forEach((wrapper) => observer.observe(wrapper));
-//     }
-// }, { immediate: true });
+const handleDragStart = (index: number) => {
+    dragIndex.value = index;
+};
 
-watch(currentPreviewIndex, (newIndex, oldIndex) => {
-    console.log(`当前预览索引变化: 从 ${oldIndex} 到 ${newIndex}`);
-    // 你可以在这里执行其他逻辑，例如根据索引变化加载数据
-});
+const handleDrop = (event: DragEvent, targetIndex: number) => {
+    event.preventDefault();
+    if (dragIndex.value === null) return;
 
+    Modal.confirm({
+        title: '确认更改',
+        content: `是否更改图片位置顺序?`,
+        onOk() {
+            const draggedImage = localImageUrls.value[dragIndex.value!];
+            localImageUrls.value.splice(dragIndex.value!, 1);
+            localImageUrls.value.splice(targetIndex, 0, draggedImage);
+
+            localImageUrls.value.forEach((item, index) => {
+                if (item.tag) {
+                    item.tag.commonSortOrder = index;
+                }
+            });
+
+            dragIndex.value = null;
+
+            saveImageOrder();
+        },
+        onCancel() {
+            dragIndex.value = null;
+            message.info('排序更改已取消');
+        },
+    });
+};
+
+const handleDragOver = (event: DragEvent) => {
+    event.preventDefault();
+};
+
+// 保存排序的函数
+const saveImageOrder = async () => {
+    const updatedOrder = localImageUrls.value.map((item, index) => ({
+        path: item.url.replace(/https?:\/\/[^\/:]+(:\d+)?\//, '').replace(/^\/+/, ''),
+        sortOrder: `${index}`, // 转换为字符串
+    }));
+
+    try {
+        const response = await axios.post('/set-tag-sort', { files: updatedOrder });
+        message.success('图片排序已保存');
+    } catch (error) {
+        console.error('Failed to update sort order:', error);
+        message.error('保存图片排序失败，请重试');
+    }
+};
+
+// 初始化
 onMounted(() => {
     clearImageCache();
-    console.log("初始化 InitialObserver");
     InitialObserver();
     componentID.value = `component-${Math.random().toString(36).substr(2, 9)}`;
 });
 
-onMounted(() => {
-    if (observer) {
-        observer.value!.disconnect();
-    }
-});
-
-let handleArrowKey: (event: KeyboardEvent) => void; // 声明全局事件处理程序
-
-onMounted(() => {
-    // 注册键盘事件前，移除旧的事件处理程序（如果存在）
-    if (handleArrowKey) {
-        window.removeEventListener('keydown', handleArrowKey);
-    }
-
-    // 定义新的事件处理程序
-    handleArrowKey = async (event: KeyboardEvent) => {
-
-        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-            setTimeout(async () => {
-                const previewImg = document.querySelector('.ant-image-preview-img') as HTMLImageElement;
-
-                if (previewImg) {
-                    const currentSrc = previewImg.src;
-
-                    // 检查 src 是否不是以 blob: 开头
-                    if (currentSrc.startsWith('http')) {
-                        console.log(`Fetching new image for src: ${currentSrc}`);
-
-                        const newSrc = await fetchImageWithAuth(currentSrc);
-
-                        if (newSrc) {
-                            previewImg.src = newSrc;
-                            console.log(`Updated image src: ${newSrc}`);
-                        } else {
-                            console.error('Failed to fetch new image source.');
-                        }
-                    }
-                }
-            }, 200); // 延迟 300ms 执行
-        }
-    };
-
-    // 注册新的事件处理程序
-    window.addEventListener('keydown', handleArrowKey);
-});
-
 onBeforeUnmount(() => {
-    // 移除事件监听器，防止组件销毁后事件残留
-    if (handleArrowKey) {
-        window.removeEventListener('keydown', handleArrowKey);
+    if (observer.value) {
+        observer.value.disconnect();
     }
 });
-
 </script>
 
 <template>
     <div class="gallery">
         <ImagePreviewGroup :preview="{ current: 1 }">
-            <div v-for="(item, index) in imageUrls" :key="item.name" class="image-wrapper"
+            <div v-for="(item, index) in localImageUrls" :key="item.name" class="image-wrapper" draggable="true"
+                @dragstart="handleDragStart(index)" @dragover="handleDragOver" @drop="handleDrop($event, index)"
                 @click="(isSelectMode || isEditMode) ? handleSelectImage(item.url, !selectedImages.has(item.url), index) : null">
                 <div class="image-container"
                     :style="{ borderColor: item.tag?.color === '#ffffff' ? '' : item.tag?.color }">
@@ -222,9 +221,6 @@ onBeforeUnmount(() => {
                         @change="(e: any) => handleSelectImage(item.url, e.target.checked, index)"
                         class="image-checkbox" :checked="selectedImages.has(item.url)" />
 
-                    <!-- 如果是选择模式，则显示缩略图，否则显示大图 -->
-                    <!-- <a-image @click="LoadPreview(item.url)" :src="loadedImages[item.url]" width="200px"
-                        :preview="(isSelectMode || isEditMode) && loadingPreview.loading ? false : { src: loadingPreview.value, onVisibleChange: onImageChange }" /> -->
                     <div style="height: 200px">
                         <a-image @click="LoadPreview(item.url)"
                             :class="`${componentID}-value_${props.getThumbnailUrl(item.url)} ${componentID}-index_${index} ${componentID}`"
@@ -245,4 +241,6 @@ onBeforeUnmount(() => {
     </div>
 </template>
 
-<style></style>
+<style>
+/* Add any styles if necessary */
+</style>

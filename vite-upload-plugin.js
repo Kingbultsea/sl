@@ -369,7 +369,7 @@ export default function uploadPlugin() {
               permission = getAttributeSync(formatPath, 'user.permission').toString();
             } catch { }
 
-            console.log("文件标签获取：", filePath, tagId, tagColor, havePassword);
+            // console.log("文件标签获取：", filePath, tagId, tagColor, havePassword);
 
             const orginTagData = tagsData.find(tag => tag.id === tagId);
 

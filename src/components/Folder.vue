@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, defineProps, h, watch, defineEmits } from 'vue';
-import { Checkbox, Button as aButton } from 'ant-design-vue';
+import { Checkbox, Button as aButton, Modal, message } from 'ant-design-vue';
 import { FolderOutlined, EditOutlined, DeleteOutlined, EyeInvisibleOutlined } from '@ant-design/icons-vue';
 import axios from 'axios';
 
@@ -50,20 +50,31 @@ const handleDragStart = (index: number) => {
 
 // 处理拖拽结束
 const handleDrop = (event: DragEvent, targetIndex: number) => {
-    event.preventDefault(); // 防止浏览器默认行为
+    event.preventDefault(); // 阻止默认行为
     if (dragIndex.value === null) return;
 
-    // 更新本地副本
-    const draggedItem = localFolderLinks.value[dragIndex.value];
-    localFolderLinks.value.splice(dragIndex.value, 1); // 移除拖拽的项
-    localFolderLinks.value.splice(targetIndex, 0, draggedItem); // 插入到目标位置
+    // 提示用户是否确认排序更改
+    Modal.confirm({
+        title: '确认更改',
+        content: `是否更改"${localFolderLinks.value[dragIndex.value].name}"文件夹的位置顺序?`,
+        onOk() {
+            // 用户确认后更新排序
+            const draggedItem = localFolderLinks.value[dragIndex.value!];
+            localFolderLinks.value.splice(dragIndex.value!, 1); // 移除拖拽的项
+            localFolderLinks.value.splice(targetIndex, 0, draggedItem); // 插入到目标位置
 
-    console.log(`Moved item from index ${dragIndex.value} to ${targetIndex}`);
-    dragIndex.value = null; // 重置拖拽索引
+            dragIndex.value = null; // 重置拖拽索引
 
-    // 通知父组件更新
-    emit('update-folder-links', [...localFolderLinks.value]);
-    saveSortOrder();
+            // 通知父组件更新
+            emit('update-folder-links', [...localFolderLinks.value]);
+            saveSortOrder();
+        },
+        onCancel() {
+            // 用户取消后重置拖拽索引
+            dragIndex.value = null;
+            message.info('Sort order change cancelled.');
+        },
+    });
 };
 
 // 调用后端接口

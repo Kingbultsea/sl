@@ -31,6 +31,7 @@ const sortPanelData = ref<{ id: string, name: string, list: { imageUrls: TypeFil
 const currentPasswordMap = ref<Record<string, string>>({}); // 记录当前文件夹层的密码
 const currentPassword = ref<string>(); // 记录当前文件夹层的密码
 const loading = ref<1 | 2 | 3>(1); // 1初始化 2 loading 3完成
+const canSaveScrollPos = ref<boolean>(false);
 
 // 每次currentPasswordMap改动时，存储到sessionStorage
 watch(currentPasswordMap, (newValue) => {
@@ -340,6 +341,7 @@ let timeoutId: any; // 用于存储 setInterval 的 ID
 let currentLinks: any[] = []; // 存储当前的链接列表
 
 const fetchHtmlAndExtractImages = async (): Promise<void> => {
+  canSaveScrollPos.value = false;
   spinningStore.setSpinning(true, "Loading");
   const curUrl = `${IMAGE_BASE_URL}${folderPath.value}`;
 
@@ -949,7 +951,7 @@ const saveScrollPosition = debounce(() => {
   const currentPath = route.fullPath;
   scrollPositions.value[currentPath] = window.scrollY;
   console.log(`Saved scroll position for ${currentPath}:`, window.scrollY);
-}, 300); // 300ms 的防抖间隔
+}, 100); // 300ms 的防抖间隔
 
 // 恢复滚动位置
 const restoreScrollPosition = () => {
@@ -971,7 +973,8 @@ watch(() => route.params.folderPath, async (newPath) => {
   await nextTick();
   setTimeout(() => {
     restoreScrollPosition();
-  }, 400);
+    canSaveScrollPos.value = true;
+  }, 200);
 });
 
 defineExpose({
@@ -988,7 +991,11 @@ const HomeClick = () => {
 }
 
 onMounted(async () => {
-  window.addEventListener("scroll", saveScrollPosition);
+  window.addEventListener("scroll", () => {
+    if (canSaveScrollPos.value) {
+      saveScrollPosition();
+    }
+  });
 
   try {
     const response = await axios.get('/get-tags');
