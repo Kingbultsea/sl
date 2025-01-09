@@ -216,7 +216,7 @@ onBeforeUnmount(() => {
                 @dragstart="handleDragStart(index)" @dragover="handleDragOver" @drop="handleDrop($event, index)"
                 @click="(isSelectMode || isEditMode) ? handleSelectImage(item.url, !selectedImages.has(item.url), index) : null">
                 <div class="image-container"
-                    :style="{ borderColor: item.tag?.color === '#ffffff' ? '' : item.tag?.color }">
+                    :style="{ borderColor: item.tag?.color === '#ffffff' ? 'rgba(0,0,0,0)' : item.tag?.color, 'border-width': '3px' }">
                     <Checkbox v-if="isSelectMode"
                         @change="(e: any) => handleSelectImage(item.url, e.target.checked, index)"
                         class="image-checkbox" :checked="selectedImages.has(item.url)" />

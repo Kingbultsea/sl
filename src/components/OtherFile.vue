@@ -143,7 +143,7 @@ const downloadFile = async (url: string, fileName: string) => {
                 @dragstart="handleDragStart(index)" @dragover="handleDragOver" @drop="handleDrop($event, index)"
                 @click="isSelectMode ? handleSelectFile(file.url, !selectedFiles.has(file.url), index) : null">
                 <div class="file-container"
-                    :style="{ borderColor: file.tag?.color === '#ffffff' ? '' : file.tag?.color }">
+                    :style="{ borderColor: file.tag?.color === '#ffffff' ? 'rgba(0, 0, 0, 0)' : file.tag?.color, 'border-width': '3px' }">
                     <Checkbox v-if="isSelectMode"
                         @change="(e: any) => handleSelectFile(file.url, e.target.checked, index)" class="file-checkbox"
                         :checked="selectedFiles.has(file.url)" />
@@ -173,5 +173,4 @@ const downloadFile = async (url: string, fileName: string) => {
     </div>
 </template>
 
-<style scoped>
-</style>
+<style scoped></style>

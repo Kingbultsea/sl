@@ -105,7 +105,7 @@ const handleDragOver = (event: DragEvent) => {
     <div class="folders" v-if="localFolderLinks.length > 0">
         <div v-for="(folder, index) in localFolderLinks" :key="index" class="folder-container" draggable="true"
             @dragstart="handleDragStart(index)" @dragover="handleDragOver" @drop="handleDrop($event, index)"
-            :style="{ borderColor: folder.tag?.color === '#ffffff' ? '' : folder.tag?.color }">
+            :style="{ borderColor: folder.tag?.color === '#ffffff' ? 'rgba(0,0,0,0)' : folder.tag?.color, 'border-width': '3px' }">
             <Checkbox v-if="isSelectMode" @change="(e: any) => handleSelectFolds(folder.url, e.target.checked, index)"
                 class="image-checkbox" :checked="selectedFold.has(folder.url)" />
 
