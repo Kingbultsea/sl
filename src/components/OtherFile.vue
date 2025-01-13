@@ -159,7 +159,11 @@ const downloadFile = async (url: string, fileName: string) => {
                         </div>
                     </a>
                     <template v-else>
-                        <a style="color: #1677ff" @click.prevent="downloadFile(file.url, file.name)">下载</a>
+                        <a style="color: #1677ff" @click.prevent="downloadFile(file.url, file.name)">
+                            <div class="file-name">
+                                {{ file.name.endsWith('.pdf') ? '打开' : '下载' }}
+                            </div>
+                        </a>
                     </template>
                     <a class="file-name" @click="copyText(file.url)" style="color: rgb(184 240 255)">
                         <ShareAltOutlined style="padding-right: 4px;" /> 文件分享
