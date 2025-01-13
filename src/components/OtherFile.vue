@@ -153,7 +153,11 @@ const downloadFile = async (url: string, fileName: string) => {
                     </div>
 
                     <a v-if="file.tag?.havePassword || currentPassword === undefined" style="color: #1677ff"
-                        :href="file.url" target="_blank">下载</a>
+                        :href="file.url" target="_blank">
+                        <div class="file-name">
+                            {{ file.name.endsWith('.pdf') ? '打开' : '下载' }}
+                        </div>
+                    </a>
                     <template v-else>
                         <a style="color: #1677ff" @click.prevent="downloadFile(file.url, file.name)">下载</a>
                     </template>
