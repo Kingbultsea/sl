@@ -24,6 +24,7 @@ const props = defineProps<{
     selectedFiles: Set<string>;
     handleSelectFile: (url: string, checked: boolean, index: number) => void;
     confirmDeleteFile: (name: string) => void;
+    sortOption: string;
 }>();
 
 // 本地副本
@@ -33,13 +34,17 @@ const localOtherFiles = ref<FileItem[]>([...props.otherFiles]);
 watch(
     () => props.otherFiles,
     (newFiles) => {
-        localOtherFiles.value = [...newFiles].sort((a, b) => {
-            const orderA = a.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
-            const orderB = b.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
-            return orderA - orderB;
-        });
+        if (props.sortOption === "date-desc-false" || props.sortOption === "date-asc-false") {
+            localOtherFiles.value = [...newFiles];
+        } else {
+            localOtherFiles.value = [...newFiles].sort((a, b) => {
+                const orderA = a.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
+                const orderB = b.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
+                return orderA - orderB;
+            });
+        }
     },
-    { immediate: true }
+    { immediate: true, deep: true }
 );
 
 const dragIndex = ref<number | null>(null); // 当前拖拽的索引

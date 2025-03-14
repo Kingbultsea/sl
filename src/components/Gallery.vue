@@ -78,15 +78,20 @@ const props = defineProps<{
     getThumbnailUrl: (url: string) => string;
     confirmDeleteImage: (name: string) => void;
     loading: 1 | 2 | 3;
+    sortOption: string;
 }>();
 
 // 本地排序逻辑
 const sortImageUrls = () => {
-    localImageUrls.value = [...props.imageUrls].sort((a, b) => {
-        const orderA = a.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
-        const orderB = b.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
-        return orderA - orderB;
-    });
+    if (props.sortOption === "date-desc-false" || props.sortOption === "date-asc-false") {
+        localImageUrls.value = [...props.imageUrls];
+    } else {
+        localImageUrls.value = [...props.imageUrls].sort((a, b) => {
+            const orderA = a.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
+            const orderB = b.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
+            return orderA - orderB;
+        });
+    }
 
     setTimeout(() => {
         for (const [index, item] of localImageUrls.value.entries()) {
@@ -101,7 +106,7 @@ const sortImageUrls = () => {
 };
 
 // 监听 props.imageUrls 变化，重新排序
-watch(() => props.imageUrls, sortImageUrls, { immediate: true });
+watch(() => props.imageUrls, sortImageUrls, { immediate: true, deep: true });
 
 const imageCache = new Map<string, string>();
 

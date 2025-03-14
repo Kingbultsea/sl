@@ -837,7 +837,7 @@ const deleteSelectedImages = async () => {
 const sortOption = ref('name-asc');
 // 排序功能
 const sortItems = () => {
-  if (isSortByFilesByTagMode.value) {
+  if (isSortByFilesByTagMode.value && sortOption.value !== "date-asc-false" && sortOption.value !== "date-desc-false") {
     // 遍历 sortPanelData 并根据 sortOption 进行排序
     sortPanelData.value.forEach(panel => {
       if (sortOption.value === 'name-asc') {
@@ -867,12 +867,18 @@ const sortItems = () => {
       imageUrls.value.sort((a, b) => b.name.localeCompare(a.name));
       folderLinks.value.sort((a, b) => b.name.localeCompare(a.name));
       otherFiles.value.sort((a, b) => b.name.localeCompare(a.name));
-    } else if (sortOption.value === 'date-asc') {
+    } else if (sortOption.value === 'date-asc' || sortOption.value === 'date-asc-false') {
+      isSortByFilesByTagMode.value = sortOption.value === 'date-asc-false' ? false : true;
+      console.log([...imageUrls.value], '查看imageUrls before');
       imageUrls.value.sort((a, b) => a.lastModified - b.lastModified);
+      console.log([...imageUrls.value], '查看imageUrls after');
       folderLinks.value.sort((a, b) => a.lastModified - b.lastModified);
       otherFiles.value.sort((a, b) => a.lastModified - b.lastModified);
-    } else if (sortOption.value === 'date-desc') {
+    } else if (sortOption.value === 'date-desc' || sortOption.value === 'date-desc-false') {
+      isSortByFilesByTagMode.value = sortOption.value === 'date-desc-false' ? false : true;
+      console.log([...imageUrls.value], '查看222 imageUrls before');
       imageUrls.value.sort((a, b) => b.lastModified - a.lastModified);
+      console.log([...imageUrls.value], '查看222 imageUrls after');
       folderLinks.value.sort((a, b) => b.lastModified - a.lastModified);
       otherFiles.value.sort((a, b) => b.lastModified - a.lastModified);
     } else {
@@ -1065,11 +1071,13 @@ onMounted(async () => {
         创建文件夹
       </a-button>
 
-      <a-select v-model:value="sortOption" style="width: 110px; margin-right: 10px;">
+      <a-select v-model:value="sortOption" style="width: 160px; margin-right: 10px;text-align: left;">
         <a-select-option value="name-asc">名称降序</a-select-option>
         <a-select-option value="name-desc">名称升序</a-select-option>
         <a-select-option value="date-asc">日期降序</a-select-option>
         <a-select-option value="date-desc">日期升序</a-select-option>
+        <a-select-option value="date-asc-false">日期降序(无视标签)</a-select-option>
+        <a-select-option value="date-desc-false">日期升序(无视标签)</a-select-option>
       </a-select>
 
       <a-dropdown trigger="click" v-if="selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0">
@@ -1157,13 +1165,13 @@ onMounted(async () => {
           :confirmDeleteFolder="confirmDeleteFolder" />
 
         <!-- 渲染图片库类型 -->
-        <Gallery :loading="loading" v-if="panel.list.imageUrls.length > 0" :currentPassword="currentPassword"
-          :imageUrls="panel.list.imageUrls" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
-          :selectedImages="selectedImages" :handleSelectImage="handleSelectImage" :getThumbnailUrl="getThumbnailUrl"
-          :confirmDeleteImage="confirmDeleteImage" />
+        <Gallery :sortOption="sortOption" :loading="loading" v-if="panel.list.imageUrls.length > 0"
+          :currentPassword="currentPassword" :imageUrls="panel.list.imageUrls" :isSelectMode="isSelectMode"
+          :isEditMode="isEditMode" :selectedImages="selectedImages" :handleSelectImage="handleSelectImage"
+          :getThumbnailUrl="getThumbnailUrl" :confirmDeleteImage="confirmDeleteImage" />
 
         <!-- 渲染其他文件类型 -->
-        <OtherFile v-if="panel.list.otherFiles.length > 0" :currentPassword="currentPassword"
+        <OtherFile :sortOption="sortOption" v-if="panel.list.otherFiles.length > 0" :currentPassword="currentPassword"
           :otherFiles="panel.list.otherFiles" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
           :selectedFiles="selectedFiles" :handleSelectFile="handleSelectFile" :confirmDeleteFile="confirmDeleteFile" />
       </div>
@@ -1175,12 +1183,13 @@ onMounted(async () => {
         :editFolderName="editFolderName" :confirmDeleteFolder="confirmDeleteFolder" />
 
       <!-- 图片库类型 -->
-      <Gallery :loading="loading" :imageUrls="imageUrls" :currentPassword="currentPassword" :isSelectMode="isSelectMode"
-        :isEditMode="isEditMode" :selectedImages="selectedImages" :handleSelectImage="handleSelectImage"
-        :getThumbnailUrl="getThumbnailUrl" :confirmDeleteImage="confirmDeleteImage" />
+      <Gallery :sortOption="sortOption" :loading="loading" :imageUrls="imageUrls" :currentPassword="currentPassword"
+        :isSelectMode="isSelectMode" :isEditMode="isEditMode" :selectedImages="selectedImages"
+        :handleSelectImage="handleSelectImage" :getThumbnailUrl="getThumbnailUrl"
+        :confirmDeleteImage="confirmDeleteImage" />
 
       <!-- 其他文件 -->
-      <OtherFile :currentPassword="currentPassword" :otherFiles="otherFiles" :isSelectMode="isSelectMode"
+      <OtherFile :sortOption="sortOption" :currentPassword="currentPassword" :otherFiles="otherFiles" :isSelectMode="isSelectMode"
         :isEditMode="isEditMode" :selectedFiles="selectedFiles" :handleSelectFile="handleSelectFile"
         :confirmDeleteFile="confirmDeleteFile" />
     </template>
