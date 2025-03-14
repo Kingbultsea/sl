@@ -20,6 +20,7 @@ const props = defineProps<{
     navigateToFolder: (folderName: string, useRouter?: boolean) => string;
     editFolderName: (folderName: string, index: number) => void;
     confirmDeleteFolder: (folderName: string, havePassword: boolean) => void;
+    sortOption: string;
 }>();
 
 const emit = defineEmits(['update-folder-links']); // 定义事件
@@ -31,13 +32,17 @@ const localFolderLinks = ref<Folder[]>([...props.folderLinks]);
 watch(
     () => props.folderLinks,
     (newLinks) => {
-        localFolderLinks.value = [...newLinks].sort((a, b) => {
-            const orderA = a.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER; // 未定义的放最后
-            const orderB = b.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
-            return orderA - orderB;
-        });
+        if (props.sortOption === "date-desc-false" || props.sortOption === "date-asc-false") {
+            localFolderLinks.value = [...newLinks];
+        } else {
+            localFolderLinks.value = [...newLinks].sort((a, b) => {
+                const orderA = a.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER; // 未定义的放最后
+                const orderB = b.tag?.commonSortOrder ?? Number.MAX_SAFE_INTEGER;
+                return orderA - orderB;
+            });
+        }
     },
-    { immediate: true }
+    { immediate: true, deep: true }
 );
 
 // 拖拽相关

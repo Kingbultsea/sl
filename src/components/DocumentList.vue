@@ -869,16 +869,12 @@ const sortItems = () => {
       otherFiles.value.sort((a, b) => b.name.localeCompare(a.name));
     } else if (sortOption.value === 'date-asc' || sortOption.value === 'date-asc-false') {
       isSortByFilesByTagMode.value = sortOption.value === 'date-asc-false' ? false : true;
-      console.log([...imageUrls.value], '查看imageUrls before');
       imageUrls.value.sort((a, b) => a.lastModified - b.lastModified);
-      console.log([...imageUrls.value], '查看imageUrls after');
       folderLinks.value.sort((a, b) => a.lastModified - b.lastModified);
       otherFiles.value.sort((a, b) => a.lastModified - b.lastModified);
     } else if (sortOption.value === 'date-desc' || sortOption.value === 'date-desc-false') {
       isSortByFilesByTagMode.value = sortOption.value === 'date-desc-false' ? false : true;
-      console.log([...imageUrls.value], '查看222 imageUrls before');
       imageUrls.value.sort((a, b) => b.lastModified - a.lastModified);
-      console.log([...imageUrls.value], '查看222 imageUrls after');
       folderLinks.value.sort((a, b) => b.lastModified - a.lastModified);
       otherFiles.value.sort((a, b) => b.lastModified - a.lastModified);
     } else {
@@ -1159,7 +1155,7 @@ onMounted(async () => {
         </div>
 
         <!-- 渲染文件夹类型 -->
-        <Folder v-if="panel.list.folderLinks.length > 0" :folderLinks="panel.list.folderLinks"
+        <Folder :sortOption="sortOption" v-if="panel.list.folderLinks.length > 0" :folderLinks="panel.list.folderLinks"
           :isSelectMode="isSelectMode" :isEditMode="isEditMode" :selectedFold="selectedFold"
           :handleSelectFolds="handleSelectFolds" :navigateToFolder="navigateToFolder" :editFolderName="editFolderName"
           :confirmDeleteFolder="confirmDeleteFolder" />
@@ -1178,7 +1174,7 @@ onMounted(async () => {
     </template>
     <template key="1" v-else>
       <!-- 文件夹类型 -->
-      <Folder :folderLinks="folderLinks" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
+      <Folder :sortOption="sortOption" :folderLinks="folderLinks" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
         :selectedFold="selectedFold" :handleSelectFolds="handleSelectFolds" :navigateToFolder="navigateToFolder"
         :editFolderName="editFolderName" :confirmDeleteFolder="confirmDeleteFolder" />
 
@@ -1189,9 +1185,9 @@ onMounted(async () => {
         :confirmDeleteImage="confirmDeleteImage" />
 
       <!-- 其他文件 -->
-      <OtherFile :sortOption="sortOption" :currentPassword="currentPassword" :otherFiles="otherFiles" :isSelectMode="isSelectMode"
-        :isEditMode="isEditMode" :selectedFiles="selectedFiles" :handleSelectFile="handleSelectFile"
-        :confirmDeleteFile="confirmDeleteFile" />
+      <OtherFile :sortOption="sortOption" :currentPassword="currentPassword" :otherFiles="otherFiles"
+        :isSelectMode="isSelectMode" :isEditMode="isEditMode" :selectedFiles="selectedFiles"
+        :handleSelectFile="handleSelectFile" :confirmDeleteFile="confirmDeleteFile" />
     </template>
   </div>
 </template>
