@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, h, computed, onMounted, nextTick } from 'vue';
+import { ref, watch, h, computed, onMounted, nextTick, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 import { useRoute, useRouter } from 'vue-router';
 import { EditOutlined, DeleteOutlined, CheckCircleOutlined, UploadOutlined, FolderAddOutlined, UnlockOutlined, LockOutlined, BgColorsOutlined, DownloadOutlined, TagOutlined } from '@ant-design/icons-vue';
@@ -983,6 +983,37 @@ defineExpose({
   fetchHtmlAndExtractImages
 });
 
+const activeSectionId = ref('');
+const scrollToPanel = (id: string) => {
+  const target = document.getElementById(`section-${id}`);
+  if (target) {
+    const offset = 120; // 向上偏移的高度，可根据导航高度调整
+    const targetPosition = target.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({
+      top: targetPosition - offset,
+      behavior: 'smooth',
+    });
+  }
+};
+onMounted(() => {
+  window.addEventListener('scroll', updateActiveSection);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', updateActiveSection);
+});
+const updateActiveSection = () => {
+  for (const panel of sortPanelData.value) {
+    const section = document.getElementById(`section-${panel.id}`);
+    if (section) {
+      const rect = section.getBoundingClientRect();
+      if (rect.top <= 120 && rect.bottom >= 120) {
+        activeSectionId.value = panel.id;
+        break;
+      }
+    }
+  }
+};
+
 // 首页
 const HomeClick = () => {
   if (searchValue.value.length > 0) {
@@ -1021,6 +1052,21 @@ onMounted(async () => {
 </script>
 
 <template>
+  <template v-if="isSortByFilesByTagMode">
+    <!-- 导航bar -->
+    <a-affix :offset-top="80" style="position: fixed; top: 300px; right: 30px;">
+      <div class="nav-panel">
+        <div class="nav-title">分类导航</div>
+        <div v-for="panel in sortPanelData" :key="panel.id" class="nav-item"
+          :class="{ active: activeSectionId === panel.id }">
+          <a @click="scrollToPanel(panel.id)">
+            {{ panel.id === '0' ? '默认' : panel.name }}
+          </a>
+        </div>
+      </div>
+    </a-affix>
+  </template>
+
   <div class="document-list">
     <a-breadcrumb :style="{ backgroundColor: props.isDarkMode ? 'white' : 'inherit', marginBottom: '20px' }">
       <a-breadcrumb-item>
@@ -1041,112 +1087,115 @@ onMounted(async () => {
 
     <a-divider />
 
-    <div class="actions">
-      <a-button class="a_button_class" :icon="h(CheckCircleOutlined)" @click="toggleSelectMode">{{ isSelectMode ? '取消选择'
-        :
-        '批量选择' }}</a-button>
-      <a-button class="a_button_class" :icon="h(DeleteOutlined)"
-        v-if="(selectedImages.size > 0 || selectedFiles.size > 0) && selectedFold.size === 0"
-        style="color: #ff4d4f!important" danger @click="deleteSelectedImages">批量删除</a-button>
-      <a-button v-if="!isSelectMode" class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{
-        isEditMode ?
-          '取消编辑' : '文件编辑'
-      }}</a-button>
-      <a-button class="a_button_class" :icon="h(DownloadOutlined)"
-        v-if="(selectedImages.size > 0 || selectedFiles.size > 0) && selectedFold.size === 0"
-        @click="downloadSelectedItems">下载选中的文件</a-button>
+    <div class="stick-bar">
+      <div class="actions">
+        <a-button class="a_button_class" :icon="h(CheckCircleOutlined)" @click="toggleSelectMode">{{ isSelectMode ?
+          '取消选择'
+          :
+          '批量选择' }}</a-button>
+        <a-button class="a_button_class" :icon="h(DeleteOutlined)"
+          v-if="(selectedImages.size > 0 || selectedFiles.size > 0) && selectedFold.size === 0"
+          style="color: #ff4d4f!important" danger @click="deleteSelectedImages">批量删除</a-button>
+        <a-button v-if="!isSelectMode" class="a_button_class" :icon="h(EditOutlined)" @click="toggleEditMode">{{
+          isEditMode ?
+            '取消编辑' : '文件编辑'
+        }}</a-button>
+        <a-button class="a_button_class" :icon="h(DownloadOutlined)"
+          v-if="(selectedImages.size > 0 || selectedFiles.size > 0) && selectedFold.size === 0"
+          @click="downloadSelectedItems">下载选中的文件</a-button>
 
-      <a-upload style="margin-right: 0px;" :before-upload="beforeUpload" :custom-request="uploadNextFile" multiple
-        :show-upload-list="false" class="a_button_class">
-        <a-button :icon="h(UploadOutlined)" class="a_button_class">
-          上传文件
+        <a-upload style="margin-right: 0px;" :before-upload="beforeUpload" :custom-request="uploadNextFile" multiple
+          :show-upload-list="false" class="a_button_class">
+          <a-button :icon="h(UploadOutlined)" class="a_button_class">
+            上传文件
+          </a-button>
+        </a-upload>
+
+        <a-button :icon="h(FolderAddOutlined)" class="a_button_class" @click="createFolder">
+          创建文件夹
         </a-button>
-      </a-upload>
 
-      <a-button :icon="h(FolderAddOutlined)" class="a_button_class" @click="createFolder">
-        创建文件夹
-      </a-button>
+        <a-select v-model:value="sortOption" style="width: 160px; margin-right: 10px;text-align: left;">
+          <a-select-option value="name-asc">名称降序</a-select-option>
+          <a-select-option value="name-desc">名称升序</a-select-option>
+          <a-select-option value="date-asc">日期降序</a-select-option>
+          <a-select-option value="date-desc">日期升序</a-select-option>
+          <a-select-option value="date-asc-false">日期降序(无视标签)</a-select-option>
+          <a-select-option value="date-desc-false">日期升序(无视标签)</a-select-option>
+        </a-select>
 
-      <a-select v-model:value="sortOption" style="width: 160px; margin-right: 10px;text-align: left;">
-        <a-select-option value="name-asc">名称降序</a-select-option>
-        <a-select-option value="name-desc">名称升序</a-select-option>
-        <a-select-option value="date-asc">日期降序</a-select-option>
-        <a-select-option value="date-desc">日期升序</a-select-option>
-        <a-select-option value="date-asc-false">日期降序(无视标签)</a-select-option>
-        <a-select-option value="date-desc-false">日期升序(无视标签)</a-select-option>
-      </a-select>
-
-      <a-dropdown trigger="click" v-if="selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0">
-        <template #overlay>
-          <div style="padding: 16px; background: white; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
-            <a-input v-model:value="tagSearchValue" placeholder="创建或搜索标签" @keydown.enter="createTag" @click.stop
-              style="width: 300px; margin-bottom: 14px;" />
-            <div v-if="filteredTags.length > 0">
-              <div v-for="tag in filteredTags" :key="tag.id" class="element-test" @click="selectTag(tag.id)" :style="{
-                display: 'flex',
-                alignItems: 'center',
-                marginBottom: '4px',
-                cursor: 'pointer',
-                color: tag.id === '0' ? 'red' : ''
-              }">
-                {{ tag.name }}
+        <a-dropdown trigger="click" v-if="selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0">
+          <template #overlay>
+            <div style="padding: 16px; background: white; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
+              <a-input v-model:value="tagSearchValue" placeholder="创建或搜索标签" @keydown.enter="createTag" @click.stop
+                style="width: 300px; margin-bottom: 14px;" />
+              <div v-if="filteredTags.length > 0">
+                <div v-for="tag in filteredTags" :key="tag.id" class="element-test" @click="selectTag(tag.id)" :style="{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: '4px',
+                  cursor: 'pointer',
+                  color: tag.id === '0' ? 'red' : ''
+                }">
+                  {{ tag.name }}
+                </div>
+              </div>
+              <div v-else>
+                创建新标签 "{{ tagSearchValue }}"
+                <div style="font-size: 12px; color: #0000004f;">(在输入框中按回车键即可创建)</div>
               </div>
             </div>
-            <div v-else>
-              创建新标签 "{{ tagSearchValue }}"
-              <div style="font-size: 12px; color: #0000004f;">(在输入框中按回车键即可创建)</div>
-            </div>
-          </div>
-        </template>
-        <a-button class="a_button_class" :icon="h(TagOutlined)">
-          编辑标签
-        </a-button>
-      </a-dropdown>
+          </template>
+          <a-button class="a_button_class" :icon="h(TagOutlined)">
+            编辑标签
+          </a-button>
+        </a-dropdown>
 
-      <!-- 设置颜色 -->
-      <a-dropdown trigger="click" v-if="selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0">
-        <template #overlay>
-          <div style="padding: 16px; background: white; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
-            <div>
-              <div v-for="color in baseColors" :key="color" @click="setFileColor(color)"
-                style="display: flex; align-items: center;  cursor: pointer; align-items: center;">
-                <span
-                  :style="{ backgroundColor: color, display: 'inline-block', width: '100px', height: '12px', marginRight: '8px', marginBottom: '12px' }">
-                  <span v-if="color === '#ffffff'" :style="{ color: 'red' }">去除颜色</span>
-                </span>
+        <!-- 设置颜色 -->
+        <a-dropdown trigger="click" v-if="selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0">
+          <template #overlay>
+            <div style="padding: 16px; background: white; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
+              <div>
+                <div v-for="color in baseColors" :key="color" @click="setFileColor(color)"
+                  style="display: flex; align-items: center;  cursor: pointer; align-items: center;">
+                  <span
+                    :style="{ backgroundColor: color, display: 'inline-block', width: '100px', height: '12px', marginRight: '8px', marginBottom: '12px' }">
+                    <span v-if="color === '#ffffff'" :style="{ color: 'red' }">去除颜色</span>
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          </template>
+          <a-button class="a_button_class" :icon="h(BgColorsOutlined)">
+            添加颜色
+          </a-button>
+        </a-dropdown>
+
+        <template
+          v-if="(selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0) && spinningStore.isInWhiteList">
+          <a-button :icon="h(LockOutlined)" class="a_button_class" @click="setPassword()">
+            为文件上锁
+          </a-button>
+
+          <a-button :icon="h(UnlockOutlined)" class="a_button_class" @click="removePassword()">
+            为文件解锁
+          </a-button>
+
+          <Permissions :onSuccess="toggleSelectMode"
+            :file-paths="[...selectedFiles, ...selectedImages, ...selectedFold]" />
         </template>
-        <a-button class="a_button_class" :icon="h(BgColorsOutlined)">
-          添加颜色
-        </a-button>
-      </a-dropdown>
+      </div>
 
-      <template
-        v-if="(selectedImages.size > 0 || selectedFiles.size > 0 || selectedFold.size > 0) && spinningStore.isInWhiteList">
-        <a-button :icon="h(LockOutlined)" class="a_button_class" @click="setPassword()">
-          为文件上锁
-        </a-button>
-
-        <a-button :icon="h(UnlockOutlined)" class="a_button_class" @click="removePassword()">
-          为文件解锁
-        </a-button>
-
-        <Permissions :onSuccess="toggleSelectMode"
-          :file-paths="[...selectedFiles, ...selectedImages, ...selectedFold]" />
-      </template>
-    </div>
-
-    <div class="search-bar">
-      <a-input-search v-model:value="searchValue" placeholder="（仅支持全局搜索）输入搜索文件目录或名称" style="width: 500px"
-        @search="onSearch" />
+      <div class="search-bar">
+        <a-input-search v-model:value="searchValue" placeholder="（仅支持全局搜索）输入搜索文件目录或名称" style="width: 500px"
+          @search="onSearch" />
+      </div>
     </div>
     <template v-if="isSortByFilesByTagMode" key="0">
       <div v-for="(panel, index) in sortPanelData" :key="panel.id" style="margin-bottom: 20px;">
         <!-- 显示分类的颜色和名称 -->
         <div style="display: flex;justify-content: centera;align-items: center;margin: 30px 0px 10px 0px;">
-          <div
+          <div :id="`section-${panel.id}`"
             style="display: flex; align-items: center;width: max-content; white-space: nowrap; padding-right: 10px;font-weight: 700;font-size: 20px">
             {{ panel.id === '0' ? "默认" : panel.name }}
           </div>
@@ -1164,12 +1213,14 @@ onMounted(async () => {
         <Gallery :sortOption="sortOption" :loading="loading" v-if="panel.list.imageUrls.length > 0"
           :currentPassword="currentPassword" :imageUrls="panel.list.imageUrls" :isSelectMode="isSelectMode"
           :isEditMode="isEditMode" :selectedImages="selectedImages" :handleSelectImage="handleSelectImage"
-          :getThumbnailUrl="getThumbnailUrl" :confirmDeleteImage="confirmDeleteImage" />
+          :getThumbnailUrl="getThumbnailUrl" :confirmDeleteImage="confirmDeleteImage"
+          :editFolderName="editFolderName" />
 
         <!-- 渲染其他文件类型 -->
         <OtherFile :sortOption="sortOption" v-if="panel.list.otherFiles.length > 0" :currentPassword="currentPassword"
           :otherFiles="panel.list.otherFiles" :isSelectMode="isSelectMode" :isEditMode="isEditMode"
-          :selectedFiles="selectedFiles" :handleSelectFile="handleSelectFile" :confirmDeleteFile="confirmDeleteFile" />
+          :selectedFiles="selectedFiles" :handleSelectFile="handleSelectFile" :confirmDeleteFile="confirmDeleteFile"
+          :editFolderName="editFolderName" />
       </div>
     </template>
     <template key="1" v-else>
@@ -1182,12 +1233,12 @@ onMounted(async () => {
       <Gallery :sortOption="sortOption" :loading="loading" :imageUrls="imageUrls" :currentPassword="currentPassword"
         :isSelectMode="isSelectMode" :isEditMode="isEditMode" :selectedImages="selectedImages"
         :handleSelectImage="handleSelectImage" :getThumbnailUrl="getThumbnailUrl"
-        :confirmDeleteImage="confirmDeleteImage" />
+        :confirmDeleteImage="confirmDeleteImage" :editFolderName="editFolderName" />
 
       <!-- 其他文件 -->
       <OtherFile :sortOption="sortOption" :currentPassword="currentPassword" :otherFiles="otherFiles"
         :isSelectMode="isSelectMode" :isEditMode="isEditMode" :selectedFiles="selectedFiles"
-        :handleSelectFile="handleSelectFile" :confirmDeleteFile="confirmDeleteFile" />
+        :handleSelectFile="handleSelectFile" :confirmDeleteFile="confirmDeleteFile" :editFolderName="editFolderName" />
     </template>
   </div>
 </template>

@@ -162,6 +162,14 @@
     opacity: 1;
   }
 
+  .stick-bar {
+    position: sticky;
+    top: 0;
+    z-index: 999; /* 确保它显示在最上层 */
+    background-color: white; /* 避免滚动时被内容遮挡 */
+    padding: 10px 0;
+  }
+
   .actions {
     display: flex;
     margin-bottom: 20px;
@@ -193,4 +201,53 @@
 .element-test:hover {
   background-color: #e0e0e0;
   /* 鼠标悬停时的灰色背景 */
+}
+
+/* 导航样式 */
+.nav-panel {
+  z-index: 999999;
+  background-color: white;
+  border: 1px solid #e4e4e4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 16px;
+  min-width: 120px;
+  max-width: 160px;
+  font-size: 14px;
+}
+
+.nav-title {
+  font-weight: bold;
+  font-size: 15px;
+  margin-bottom: 10px;
+  color: #333;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 4px;
+}
+
+.nav-item {
+  margin-bottom: 8px;
+}
+
+.nav-item a {
+  color: #39629a;
+  transition: all 0.2s ease;
+}
+
+.nav-item a:hover {
+  color: #39629a;
+  text-decoration: underline;
+}
+
+.nav-item.active a {
+  color: #39629a;
+  font-weight: bold;
+  position: relative;
+}
+
+.nav-item.active a::before {
+  content: '●';
+  display: inline-block;
+  margin-right: 6px;
+  color: #39629a;
 }

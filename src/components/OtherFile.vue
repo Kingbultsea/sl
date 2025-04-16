@@ -1,9 +1,68 @@
 <script setup lang="ts">
 import { defineProps, h, ref, watch } from 'vue';
 import { Checkbox, Button as aButton, Modal, message } from 'ant-design-vue';
-import { FileOutlined, DeleteOutlined, ShareAltOutlined } from '@ant-design/icons-vue';
+import { FileOutlined, DeleteOutlined, ShareAltOutlined, EditOutlined } from '@ant-design/icons-vue';
 import axios from 'axios';
 import { copyText } from '../util';
+import { useSpinningStore } from '../stores/spinningStore';
+
+const spinningStore = useSpinningStore();
+
+const playingVideoUrl = ref<string | null>(null);
+const showVideoModal = ref(false);
+const videoPosterMap = ref<Record<string, string>>({}); // key 是 file.url，value 是封面图 base64
+
+function getVideoFirstFrame(url: string, width = 160, height = 90): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const video = document.createElement('video');
+        video.crossOrigin = 'anonymous'; // 支持跨域
+        video.src = url;
+        video.muted = true; // iOS 有些浏览器需要 muted 才能 autoplay
+        video.playsInline = true; // 支持移动端
+        video.currentTime = 1; // 取第一秒的画面
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        video.onloadeddata = () => {
+            // 确保 seek 成功
+            video.onseeked = () => {
+                if (ctx) {
+                    ctx.drawImage(video, 0, 0, width, height);
+                    const base64 = canvas.toDataURL('image/jpeg', 0.92);
+                    resolve(base64);
+                } else {
+                    reject(new Error('Canvas context is null'));
+                }
+            };
+
+            // 有些浏览器需要显式调用 play 才能 seek
+            video.play().then(() => {
+                video.pause(); // 立即暂停
+                video.currentTime = 1;
+            }).catch((e) => {
+                console.warn('自动播放失败，手动 seek');
+                video.currentTime = 1;
+            });
+        };
+
+        video.onerror = () => {
+            reject(new Error('加载视频失败，可能是跨域或地址错误'));
+        };
+    });
+}
+
+const playVideo = (url: string) => {
+    playingVideoUrl.value = url;
+    showVideoModal.value = true;
+};
+
+const closeVideo = () => {
+    showVideoModal.value = false;
+    playingVideoUrl.value = null; // 销毁 video
+};
 
 // 定义文件类型
 interface FileItem {
@@ -24,6 +83,7 @@ const props = defineProps<{
     selectedFiles: Set<string>;
     handleSelectFile: (url: string, checked: boolean, index: number) => void;
     confirmDeleteFile: (name: string) => void;
+    editFolderName: (folderName: string, index: number) => void;
     sortOption: string;
 }>();
 
@@ -45,6 +105,27 @@ watch(
         }
     },
     { immediate: true, deep: true }
+);
+
+watch(
+    () => props.otherFiles,
+    async (newFiles) => {
+        const videoFiles = newFiles.filter(file =>
+            file.name.endsWith('.mp4') || file.name.endsWith('.mov')
+        );
+
+        for (const file of videoFiles) {
+            if (!videoPosterMap.value[file.url]) {
+                try {
+                    const base64 = await getVideoFirstFrame(file.url, 200, 112);
+                    videoPosterMap.value[file.url] = base64;
+                } catch (e) {
+                    console.warn(`生成封面失败: ${file.url}`, e);
+                }
+            }
+        }
+    },
+    { immediate: true }
 );
 
 const dragIndex = ref<number | null>(null); // 当前拖拽的索引
@@ -152,7 +233,12 @@ const downloadFile = async (url: string, fileName: string) => {
                     <Checkbox v-if="isSelectMode"
                         @change="(e: any) => handleSelectFile(file.url, e.target.checked, index)" class="file-checkbox"
                         :checked="selectedFiles.has(file.url)" />
-                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+
+                    <template v-if="file.name.endsWith('.mov') || file.name.endsWith('.mp4')">
+                        <img  @click="playVideo(file.url)" v-if="videoPosterMap[file.url]" :src="videoPosterMap[file.url]" :alt="file.name"
+                            style="width: 100%; border-radius: 6px; margin-bottom: 4px;" />
+                    </template>
+                    <div v-else style="display: flex; align-items: center; margin-bottom: 10px;">
                         <FileOutlined class="file-icon" />
                         <div>{{ file.fileSize }}</div>
                     </div>
@@ -169,6 +255,12 @@ const downloadFile = async (url: string, fileName: string) => {
                                 </div>
                             </a>
                         </template>
+                    </template>
+
+                    <template v-if="file.name.endsWith('.mov') || file.name.endsWith('.mp4')">
+                        <a-button type="link" style="padding: 0;" @click="playVideo(file.url)">
+                            ▶ 播放视频
+                        </a-button>
                     </template>
 
                     <a v-if="file.tag?.havePassword || currentPassword === undefined" style="color: #1677ff"
@@ -190,11 +282,19 @@ const downloadFile = async (url: string, fileName: string) => {
                     <div class="file-name">{{ file.lastModifiedText }}</div>
 
                     <div v-if="isEditMode" class="delete-button" style="top: 0px">
+                        <a-button v-if="isEditMode && spinningStore.isInWhiteList" type="link" :icon="h(EditOutlined)"
+                            @click="editFolderName(file.name, index)" />
                         <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
                     </div>
                 </div>
             </div>
         </div>
+
+        <Modal v-model:open="showVideoModal" title="播放视频" :footer="null" @cancel="closeVideo" width="800px"
+            destroyOnClose>
+            <video v-if="playingVideoUrl" :src="playingVideoUrl" controls autoplay
+                style="width: 100%; border-radius: 6px;"></video>
+        </Modal>
     </div>
 </template>
 
