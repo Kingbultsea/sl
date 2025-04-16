@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { defineProps, h, ref, watch } from 'vue';
 import { Checkbox, Button as aButton, Modal, message } from 'ant-design-vue';
-import { FileOutlined, DeleteOutlined, ShareAltOutlined, EditOutlined } from '@ant-design/icons-vue';
+import { FileOutlined, DeleteOutlined, ShareAltOutlined, EditOutlined, PlayCircleOutlined } from '@ant-design/icons-vue';
 import axios from 'axios';
-import { copyText } from '../util';
+import { copyText, getFileExtension, getFileBaseName } from '../util';
 import { useSpinningStore } from '../stores/spinningStore';
 
 const spinningStore = useSpinningStore();
@@ -83,7 +83,7 @@ const props = defineProps<{
     selectedFiles: Set<string>;
     handleSelectFile: (url: string, checked: boolean, index: number) => void;
     confirmDeleteFile: (name: string) => void;
-    editFolderName: (folderName: string, index: number) => void;
+    editFolderName: (folderName: string, index: number, extend?: string) => void;
     sortOption: string;
 }>();
 
@@ -235,8 +235,16 @@ const downloadFile = async (url: string, fileName: string) => {
                         :checked="selectedFiles.has(file.url)" />
 
                     <template v-if="file.name.endsWith('.mov') || file.name.endsWith('.mp4')">
-                        <img  @click="playVideo(file.url)" v-if="videoPosterMap[file.url]" :src="videoPosterMap[file.url]" :alt="file.name"
-                            style="width: 100%; border-radius: 6px; margin-bottom: 4px;" />
+                        <div style="position: relative;">
+                            <img v-if="videoPosterMap[file.url]" :src="videoPosterMap[file.url]" :alt="file.name"
+                                style="width: 100%; border-radius: 6px;" />
+
+                            <div @click="playVideo(file.url)"
+                                style="display: flex;font-size: 50px;justify-content: center;align-items: center;color:#fff;width: 100%;height: 100%;position: absolute;left: 0; top: 0;z-index: 1;background-color: #ffffff38;">
+                                <PlayCircleOutlined />
+                            </div>
+                        </div>
+
                     </template>
                     <div v-else style="display: flex; align-items: center; margin-bottom: 10px;">
                         <FileOutlined class="file-icon" />
@@ -257,18 +265,19 @@ const downloadFile = async (url: string, fileName: string) => {
                         </template>
                     </template>
 
-                    <template v-if="file.name.endsWith('.mov') || file.name.endsWith('.mp4')">
+                    <!-- <template v-if="file.name.endsWith('.mov') || file.name.endsWith('.mp4')">
                         <a-button type="link" style="padding: 0;" @click="playVideo(file.url)">
                             ▶ 播放视频
                         </a-button>
-                    </template>
+                    </template> -->
 
-                    <a v-if="file.tag?.havePassword || currentPassword === undefined" style="color: #1677ff"
-                        :href="file.url" target="_blank">
+                    <a class="file-name" v-if="file.tag?.havePassword || currentPassword === undefined"
+                        style="color: rgb(184 240 255)" :href="file.url" target="_blank">
                         下载
                     </a>
                     <template v-else>
-                        <a style="color: #1677ff" @click.prevent="downloadFile(file.url, file.name)">
+                        <a class="file-name" style="color: rgb(184 240 255)"
+                            @click.prevent="downloadFile(file.url, file.name)">
                             <div>
                                 下载
                             </div>
@@ -283,7 +292,7 @@ const downloadFile = async (url: string, fileName: string) => {
 
                     <div v-if="isEditMode" class="delete-button" style="top: 0px">
                         <a-button v-if="isEditMode && spinningStore.isInWhiteList" type="link" :icon="h(EditOutlined)"
-                            @click="editFolderName(file.name, index)" />
+                            @click="editFolderName(getFileBaseName(file.name), index, getFileExtension(file.name))" />
                         <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteFile(file.name)" />
                     </div>
                 </div>
@@ -293,7 +302,7 @@ const downloadFile = async (url: string, fileName: string) => {
         <Modal v-model:open="showVideoModal" title="播放视频" :footer="null" @cancel="closeVideo" width="800px"
             destroyOnClose>
             <video v-if="playingVideoUrl" :src="playingVideoUrl" controls autoplay
-                style="width: 100%; border-radius: 6px;"></video>
+                style="width: 100%; max-height: 70vh; object-fit: contain; border-radius: 6px;"></video>
         </Modal>
     </div>
 </template>

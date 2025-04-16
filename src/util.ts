@@ -22,3 +22,14 @@ export const copyText = async (content: string) => {
     // 移除临时 input 元素
     document.body.removeChild(input);
 };
+
+export const getFileExtension = (fileName: string): string => {
+    const parts = fileName.split('.');
+    return parts.length > 1 ? parts.pop()!.toLowerCase() : '';
+};
+
+export function getFileBaseName(fileName: string): string {
+    const lastDotIndex = fileName.lastIndexOf('.');
+    if (lastDotIndex === -1) return fileName; // 没有后缀
+    return fileName.substring(0, lastDotIndex);
+}

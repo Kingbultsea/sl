@@ -165,8 +165,10 @@
   .stick-bar {
     position: sticky;
     top: 0;
-    z-index: 999; /* 确保它显示在最上层 */
-    background-color: white; /* 避免滚动时被内容遮挡 */
+    z-index: 999;
+    /* 确保它显示在最上层 */
+    background-color: white;
+    /* 避免滚动时被内容遮挡 */
     padding: 10px 0;
   }
 
@@ -211,9 +213,14 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   border-radius: 10px;
   padding: 16px;
-  min-width: 120px;
+  min-width: 160px;
   max-width: 160px;
   font-size: 14px;
+  max-height: 300px;
+  /* 限高 */
+  overflow-y: auto;
+  /* 可滚动 */
+  position: relative;
 }
 
 .nav-title {
@@ -230,17 +237,21 @@
 }
 
 .nav-item a {
-  color: #39629a;
+  color: #014197;
   transition: all 0.2s ease;
+  display: flex;
+  text-align: left;
+  align-items: baseline;
+  justify-content: flex-start;
 }
 
 .nav-item a:hover {
-  color: #39629a;
+  color: #014197;
   text-decoration: underline;
 }
 
 .nav-item.active a {
-  color: #39629a;
+  color: #014197;
   font-weight: bold;
   position: relative;
 }
@@ -249,5 +260,5 @@
   content: '●';
   display: inline-block;
   margin-right: 6px;
-  color: #39629a;
+  color: #014197;
 }

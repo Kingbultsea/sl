@@ -3,7 +3,7 @@ import { defineProps, h, watch, ref, onMounted, onBeforeUnmount } from 'vue';
 import { Checkbox, Button as aButton, Image as aImage, ImagePreviewGroup, Modal, message } from 'ant-design-vue';
 import { DeleteOutlined, ShareAltOutlined, EditOutlined } from '@ant-design/icons-vue';
 import axios from 'axios';
-import { copyText } from '../util';
+import { copyText, getFileExtension, getFileBaseName } from '../util';
 import { useSpinningStore } from '../stores/spinningStore';
 
 const spinningStore = useSpinningStore();
@@ -80,7 +80,7 @@ const props = defineProps<{
     handleSelectImage: (url: string, checked: boolean, index: number) => void;
     getThumbnailUrl: (url: string) => string;
     confirmDeleteImage: (name: string) => void;
-    editFolderName: (folderName: string, index: number) => void;
+    editFolderName: (folderName: string, index: number, extend?: string) => void;
     loading: 1 | 2 | 3;
     sortOption: string;
 }>();
@@ -243,7 +243,7 @@ onBeforeUnmount(() => {
                     <div class="image-name">{{ item.lastModifiedText }}</div>
                     <div v-if="isEditMode" class="delete-button">
                         <a-button v-if="isEditMode && spinningStore.isInWhiteList" type="link" :icon="h(EditOutlined)"
-                            @click="editFolderName(item.name, index)" />
+                            @click="editFolderName(getFileBaseName(item.name), index, getFileExtension(item.name))" />
                         <a-button type="link" danger :icon="h(DeleteOutlined)" @click="confirmDeleteImage(item.name)" />
                     </div>
                 </div>

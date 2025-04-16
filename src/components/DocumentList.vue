@@ -14,6 +14,7 @@ import debounce from 'lodash/debounce';
 
 // @ts-ignore 这里组件类型莫名报错
 import OtherFile from './OtherFile.vue';
+import { getFileExtension } from '../util';
 
 import './DocumentList.css'; // 引入外部 CSS 文件
 
@@ -682,36 +683,52 @@ const createFolder = () => {
 };
 
 // 编辑文件夹名称
-const editFolderName = (oldName: string, index: number) => {
+const editFolderName = (oldName: string, index: number, extend?: string) => {
   let inputValue = oldName;
 
   Modal.confirm({
-    title: '修改文件夹名称',
+    title: '修改名称',
     content: h('Input', {
       id: 'edit-folder-name',
+      style: { width: '240px' },
       defaultValue: oldName,
-      placeholder: '请输入新的文件夹名称',
-      onInput: (e: any) => inputValue = e.target.value
+      placeholder: '请输入新的文件名称',
+      onInput: (e: any) => {
+        const value = e.target.value.replace(/\s/g, ''); // 禁止空格
+        e.target.value = value;
+        inputValue = value;
+      },
     }),
     onOk() {
       if (!inputValue) {
-        message.error('文件夹名称不能为空');
+        message.error('文件名称不能为空');
         return Promise.reject();
       }
+
+      // 保证扩展名存在（如果传入了 extend）
+      if (extend) {
+        oldName += `.${extend}`;
+        inputValue += `.${extend}`;
+      }
+
+      console.log("查看inputvalue", inputValue);
 
       const folderPathValue = `${folderPath.value + (folderPath.value === '/' ? '' : '/')}${oldName}`;
       const newFolderPathValue = `${folderPath.value + (folderPath.value === '/' ? '' : '/')}${inputValue}`;
 
-      return axios.post('/edit-folder', { folderPath: folderPathValue, name: newFolderPathValue })
+      // todo getFileExtension 如果识别到 extend存在，newFolderPathValue的后缀和extend不一致，则帮添加extend
+
+
+      return axios.post('/edit-folder', { folderPath: folderPathValue, name: newFolderPathValue})
         .then(() => {
-          message.success('文件夹名称修改成功' + inputValue);
+          message.success('文件名称修改成功' + inputValue);
           // folderLinks.value[index].name = inputValue;
           // folderLinks.value[index].url = appendToCurrentPath(inputValue);
           // console.log(folderLinks.value[index].url);
           fetchHtmlAndExtractImages(); // 触发刷新事件 直接触发刷新事件是会影响当前功能的，需要知道是哪个文件，自动修改
         })
         .catch(error => {
-          message.error('文件夹名称修改失败');
+          message.error('文件名称修改失败');
           console.error('Error editing folder name:', error);
         });
     },
@@ -1052,21 +1069,6 @@ onMounted(async () => {
 </script>
 
 <template>
-  <template v-if="isSortByFilesByTagMode">
-    <!-- 导航bar -->
-    <a-affix :offset-top="80" style="position: fixed; top: 300px; right: 30px;">
-      <div class="nav-panel">
-        <div class="nav-title">分类导航</div>
-        <div v-for="panel in sortPanelData" :key="panel.id" class="nav-item"
-          :class="{ active: activeSectionId === panel.id }">
-          <a @click="scrollToPanel(panel.id)">
-            {{ panel.id === '0' ? '默认' : panel.name }}
-          </a>
-        </div>
-      </div>
-    </a-affix>
-  </template>
-
   <div class="document-list">
     <a-breadcrumb :style="{ backgroundColor: props.isDarkMode ? 'white' : 'inherit', marginBottom: '20px' }">
       <a-breadcrumb-item>
@@ -1241,4 +1243,19 @@ onMounted(async () => {
         :handleSelectFile="handleSelectFile" :confirmDeleteFile="confirmDeleteFile" :editFolderName="editFolderName" />
     </template>
   </div>
+
+  <template v-if="isSortByFilesByTagMode">
+    <!-- 导航bar -->
+    <a-affix :offset-top="80" style="position: fixed; top: 260px; right: 30px;">
+      <div class="nav-panel">
+        <div class="nav-title">分类导航</div>
+        <div v-for="panel in sortPanelData" :key="panel.id" class="nav-item"
+          :class="{ active: activeSectionId === panel.id }">
+          <a @click="scrollToPanel(panel.id)">
+            {{ panel.id === '0' ? '默认' : panel.name }}
+          </a>
+        </div>
+      </div>
+    </a-affix>
+  </template>
 </template>
