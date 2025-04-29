@@ -244,7 +244,14 @@ const downloadFile = async (url: string, fileName: string) => {
                                 <PlayCircleOutlined />
                             </div>
                         </div>
-
+                    </template>
+                    <template
+                        v-else-if="file.name.endsWith('.mp3') || file.name.endsWith('.wav') || file.name.endsWith('.ogg')">
+                        <!-- 音频直接展示内置播放器 -->
+                        <audio :src="file.url" controls
+                            style="width: 200px; height: 40px; border-radius: 6px; margin: 6px 0;">
+                            Your browser does not support the audio element.
+                        </audio>
                     </template>
                     <div v-else style="display: flex; align-items: center; margin-bottom: 10px;">
                         <FileOutlined class="file-icon" />
